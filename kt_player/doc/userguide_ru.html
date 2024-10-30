@@ -1,0 +1,306 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+	<title>Flash / HTML5 видео плеер Kernel Team v5.x</title>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+	<link rel="stylesheet" href="styles/doc.css"/>
+</head>
+<body>
+	<div id="header"><div id="header_inner"></div></div>
+	<div id="documentation">
+		<h1 id="section_system_settings">Flash / HTML5 видео плеер Kernel Team v5.x</h1>
+		<h2 id="section_system_settings_contents">Содержание</h2>
+		<div class="contents">
+			<a href="#section_basic" class="l2">1. Общая информация</a><br/>
+			<a href="#section_installation" class="l2">2. Установка плеера</a><br/>
+			<a href="#section_separate_include" class="l2">3. Включение плеера в HTML код страницы сайта</a><br/>
+			<a href="#section_separate_html5" class="l2">4. Режим Flash / HTML5</a><br/>
+			<a href="#section_separate_js_api" class="l2">5. JavaScript API плеера</a><br/>
+			<a href="#section_separate_files" class="l2">6. Список файлов для плеера</a>
+		</div>
+		<h2 id="section_basic">1. Общая информация</h2>
+		<p>
+			Видео плеер Kernel Team разработан с учетом основных требований монетизации ресурса. Плеер поддерживает
+			возможность использования огромного количества рекламы в различных местах и при различных событиях,
+			например: pre-roll, post-roll реклама, реклама на паузе или остановке видео, рекламная ссылка в контролбаре
+			плеера, логотип со ссылкой и т.д.
+		</p>
+		<p>
+			Плеер работает в двух режимах: обычный режим и "embed" режим. Обычный режим предназначен для использования
+			плеера на "родном" сайте. Режим "embed" включается в том случае, если ваш плеер загружается c другого
+			ресурса. В этом режиме конфигурация рекламы плеера не может быть перекрыта извне, таким образом, если
+			кто-то показывает embed код с вашим видео на другом сайте, ваша реклама не может быть перекрыта или
+			удалена. Более того, настройка плеера в "embed" режиме осуществляется вами в одном месте, таким образом,
+			если вы захотите изменить настройки рекламы - эти настройки мгновенно отразятся на всех сайтах, которые
+			используют ваш embed код.
+		</p>
+		<p>
+			Видео плеер Kernel Team может использоваться бесплатно без каких-либо ограничений.
+		</p>
+		<h2 id="section_installation">2. Установка плеера</h2>
+		<p>
+			Для установки плеера вам необходимо выполнить следующие шаги:
+		</p>
+		<ul>
+			<li>
+				Распакуйте архив с файлами плеера в директорию <b>/%DOMAIN_ROOT%/kt_player</b>. Если вы хотите
+				установить плеер в другую директорию, убедитесь, что вы заменили директорию в .htaccess файле плеера.
+			</li>
+			<li>
+				В файле <b>/%DOMAIN_ROOT%/kt_player/.htaccess</b> замените токен <b>%DOMAIN%</b> на название вашего
+				домена.
+			</li>
+			<li>
+				Скопируйте файл <b>demo/crossdomain.xml</b> в корень вашего домена. Если вы планируете использовать
+				видео или изображения, которые хостятся на других доменах (и сабдоменах), вам необходимо скопировать
+				этот файл на все другие домены (сабдомены), с которых плеер будет что-то использовать.
+			</li>
+		</ul>
+		<p class="important">
+			<b>Важно!</b> Любые SWF файлы, которые используются в плеере через API должны быть реализованы на
+			ActionScript3.
+		</p>
+		<h2 id="section_separate_include">3. Включение плеера в HTML код страницы сайта</h2>
+		<p>
+			Для включения плеера у вас на сайте воспользуйтесь
+			<a href="/kt_player/configure_ru.html" target="_blank">конфигуратором</a>, который позволит легко и быстро
+			задать все необходимые настройки плеера.
+		</p>
+		<h2 id="section_separate_html5">4. Flash vs HTML5 mode</h2>
+		<p>
+			Видео плеер Kernel Team поддерживает базовый HTML5 режим для проигрывания ваших видео на мобильных
+			устройствах. Плеер использует следующий алгоритм для определения, в каком режиме показывать видео:
+		</p>
+		<div class="table">
+			<table>
+				<colgroup>
+					<col width="10%"/>
+					<col/>
+				</colgroup>
+				<tr class="header">
+					<td>Режим</td>
+					<td>Описание</td>
+					<td>Условия</td>
+				</tr>
+				<tr>
+					<td>Flash</td>
+					<td>По умолчанию. Работает для большинства десктопных устройств.</td>
+					<td>Браузер должен поддерживать Flash.</td>
+				</tr>
+				<tr>
+					<td>HTML5 видео</td>
+					<td>Отображается встроенный в браузер HTML5 плеер. Данный режим поддерживает только JavaScript рекламу (через JS API плеера). Работает на большинстве мобильных устройств.</td>
+					<td>
+						(a) Браузер не поддерживает Flash.<br/>
+						(b) Видео имеет MP4 контейнер (h264 кодек).<br/>
+						(c) Браузер поддерживает проигрывание MP4 формата.
+					</td>
+				</tr>
+				<tr>
+					<td>Встроенный режим видео</td>
+					<td>Отображается простая ссылка на MP4 файл. Работает на большинстве мобильных устройств.</td>
+					<td>
+						(a) Браузер не поддерживает Flash.<br/>
+						(b) Видео имеет MP4 контейнер (h264 кодек).<br/>
+						(c) Браузер не поддерживает проигрывание MP4 формата.
+					</td>
+				</tr>
+			</table>
+		</div>
+		<p class="important">
+			<b>Важно!</b> HTML5 / Встроенный режимы могут использоваться только с MP4 файлами. Все современные
+			мобильные устройства поддерживают проигрывание MP4 файлов.
+		</p>
+		<h2 id="section_separate_js_api">5. JavaScript API плеера</h2>
+		<p>
+			JavaScript API используется для указанию плееру embed кода, который должен отображаться внутри плеера (если
+			переменная инициализации <b>embed</b> = 1). Для того, чтобы указать плееру embed код, вам необходимо
+			добавить следующую JavaScript функцию на странице с плеером:
+		</p>
+		<p class="code">
+			function getEmbed() {<br/>
+			&nbsp;&nbsp;&nbsp;&nbsp;return '%EMBED_CODE_GOES_HERE%';<br/>
+			}<br/>
+		</p>
+		<p>
+			В данной функции необходимо заменить токен <b>%EMBED_CODE_GOES_HERE%</b> на embed код, который вы хотите
+			вывести в плеере. Существует несколько вариаций embed кодов:
+		</p>
+		<ul>
+			<li>
+				Классический embed код - поддерживает только Flash плеер и не позволяет использовать JavaScript API
+				плеера:
+				<span class="code">
+					&lt;object id="kt_player" name="kt_player" classid="clsid:D27CDB6E-AE6D-11cf-96B8-444553540000" codebase="http://download.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=9,0,0,0" width="600" height="400"&gt;<br/>
+					&nbsp;&nbsp;&nbsp;&nbsp;&lt;param name="allowscriptaccess" value="always"/&gt;<br/>
+					&nbsp;&nbsp;&nbsp;&nbsp;&lt;param name="allowFullScreen" value="true"/&gt;<br/>
+					&nbsp;&nbsp;&nbsp;&nbsp;&lt;param name="movie" value="http://%YOUR_DOMAIN_HERE%/kt_player/kt_player.swf"/&gt;<br/>
+					&nbsp;&nbsp;&nbsp;&nbsp;&lt;param name="flashvars" value="video_url=%VIDEO_URL%&amp;amp;preview_url=%PREVIEW_IMAGE_URL%"/&gt;<br/>
+					&nbsp;&nbsp;&nbsp;&nbsp;&lt;embed src="http://%YOUR_DOMAIN_HERE%/kt_player/kt_player.swf?video_url=%VIDEO_URL%&amp;amp;preview_url=%PREVIEW_IMAGE_URL%" width="600" height="400" allowfullscreen="true" allowscriptaccess="always" type="application/x-shockwave-flash" pluginspage="http://www.macromedia.com/go/getflashplayer"/&gt;<br/>
+					&lt;/object>
+				</span>
+			</li>
+			<li>
+				Iframe embed код - предоставляется в виде iframe, который ссылается на страницу вашего сайта, на
+				которой находится плеер. В отличие от классического кода поддерживает все режимы отображения плеера,
+				а также позволяет использовать JavaScript API в полной мере. Использование этого embed кода
+				подразумевает, что на вашем сайте реализован функционал, который по переданному идентификатору видео
+				(%VIDEO_ID%) будет отображать страницу с плеером для этого видео.
+				<span class="code">
+					&lt;iframe width="600" height="400" src="http://%YOUR_DOMAIN_HERE%/embed/%VIDEO_ID%" frameborder="0" allowfullscreen webkitallowfullscreen mozallowfullscreen oallowfullscreen msallowfullscreen&gt;&lt;/iframe&gt;
+				</span>
+			</li>
+		</ul>
+		<p class="important">
+			<b>Важно!</b> Если вы не объявляете функцию getEmbed() и не возвращаете плееру embed код - то плеер
+			сгенерит его самостоятельно исходя из переменных инициализации, которые переданы ему самому. В этом случае
+			размеры плеера в embed коде будут установлены такие же, как и при отображении плеера у вас на странице. Вы
+			можете использовать функцию getEmbed() для выдачи embed кода с другими данными, например, размерами.
+		</p>
+		<p>
+			Плеер поддерживает JavaScript колбэки на многие события. Вы можете использовать эти колбэки по своему
+			усмотрению:
+		</p>
+		<p class="code">
+			var player_obj = kt_player('kt_player', '/kt_player/kt_player.swf', '600', '400', flashvars, params);<br/>
+			player_obj.listen('ktVideoStarted', function() {alert('Video started');});<br/>
+			player_obj.listen('ktVideoPaused', function() {alert('Video paused');});<br/>
+			player_obj.listen('ktVideoStopped', function() {alert('Video stopped');});<br/>
+			player_obj.listen('ktVideoScrolled', function(time) {alert('Video scrolled to ' + time + ' seconds');});<br/>
+			player_obj.listen('ktVideoProgress', function(time) {alert('Video played to ' + time + ' seconds');});<br/>
+			player_obj.listen('ktVideoFinished', function() {alert('Video finished');});<br/>
+			player_obj.listen('ktFullScreenActivated', function() {alert('Player goes to full screen mode');});<br/>
+			player_obj.listen('ktFullScreenDeactivated', function() {alert('Player goes to normal mode');});<br/>
+			player_obj.listen('ktPreRollStarted', function() {alert('Configured pre-roll ad started');});<br/>
+			player_obj.listen('ktPreRollFinished', function() {alert('Configured pre-roll ad finished');});<br/>
+			player_obj.listen('ktPostRollStarted', function() {alert('Configured post-roll ad started');});<br/>
+			player_obj.listen('ktPostRollFinished', function() {alert('Configured post-roll ad finished');});<br/>
+			<br/>
+			player_obj.listen('ktVideoFormatChanging', function(format) {<br/>
+				&nbsp;&nbsp;&nbsp;&nbsp;alert('Video format is attempted to be changed to: ' + format);<br/>
+				&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">// этот обработчик может использоваться для показа пользователю HTML содержимого при попытке переключить формат</span><br/>
+				&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">// функция должна вернуть 'true' (как строку), если вы хотите чтобы плеер отменил действие по умолчанию</span><br/>
+			});
+			<br/><br/>
+			player_obj.listen('ktToolbarLogoClick', function() {<br/>
+				&nbsp;&nbsp;&nbsp;&nbsp;alert('User clicked on toolbar logo text');<br/>
+				&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">// этот обработчик может использоваться для показа пользователю HTML содержимого при попытке кликнуть на рекламную текстовку в тулбаре</span><br/>
+				&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">// функция должна вернуть 'true' (как строку), если вы хотите чтобы плеер отменил действие по умолчанию</span><br/>
+			});
+		</p>
+		<p>
+			При необходимости инициализации перехвата событий плеера извне, вы можете определить функцию
+			kt_player_loaded, которая вызывается после инициализации плеера:
+		</p>
+		<p class="code">
+			function kt_player_loaded(player_obj) {<br/>
+			&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">// настройка перехвата событий</span><br/>
+			&nbsp;&nbsp;&nbsp;&nbsp;player_obj.listen(...);<br/>
+			}<br/>
+		</p>
+		<p>
+			Во время инициализации плеер изменяет CSS стили его DIV-контейнера, чтобы можно было легко показывать
+			внутри контейнера HTML слои поверх плеера (например, рекламу, всплывающие баннеры, доп. меню). Таким
+			образом, можно добавлять слои с абсолютным позиционированием в DOM структуру контейнера.
+		</p>
+		<p class="code">
+			стиль контейнера {<br/>
+			&nbsp;&nbsp;&nbsp;&nbsp;width: 600px;<br/>
+			&nbsp;&nbsp;&nbsp;&nbsp;height: 400px;<br/>
+			&nbsp;&nbsp;&nbsp;&nbsp;position: relative;<br/>
+			&nbsp;&nbsp;&nbsp;&nbsp;overflow: hidden;<br/>
+			}<br/><br/>
+		</p>
+		<p>
+			Дополнительное API по управлению плеером:
+		</p>
+		<p class="code">
+			<span class="comment">// получить DIV-элемент контейнера</span><br/>
+			player_obj.container();<br/><br/>
+			<span class="comment">// запустить проигрывание</span><br/>
+			player_obj.play();<br/><br/>
+			<span class="comment">// приостановить проигрывание</span><br/>
+			player_obj.pause();<br/><br/>
+		</p>
+		<h2 id="section_separate_files">6. Список файлов для плеера</h2>
+		<p>
+			Данный список перечисляет все файлы, которые поставляются вместе с плеером и их предназначение:
+		</p>
+		<div class="table">
+			<table>
+				<colgroup>
+					<col width="10%"/>
+					<col/>
+				</colgroup>
+				<tr class="header">
+					<td>Имя файла</td>
+					<td>Описание</td>
+				</tr>
+				<tr>
+					<td>.htaccess</td>
+					<td>
+						Содержит правила mod_rewrite, согласно которым все запросы на плеер с других доменов
+						переключают плеер в "embed" режим.
+					</td>
+				</tr>
+				<tr>
+					<td>btn_play.jpg</td>
+					<td>
+						Кнопка начала проигрывания, которая показывается в центре плеера в HTML5 / встроенном режиме.
+					</td>
+				</tr>
+				<tr>
+					<td>embed.php</td>
+					<td>
+						Файл редиректа на плеер в "embed" режиме. Работает совместно с <b>.htaccess</b>.
+					</td>
+				</tr>
+				<tr>
+					<td>embed.xml</td>
+					<td>
+						Файл настройки переменных инициализации плеера в "embed" режиме. Заполняя его, вы настраиваете
+						поведение вашего плеера для посетителей других доменов.
+					</td>
+				</tr>
+				<tr>
+					<td>configure_en.html (configure_ru.html)</td>
+					<td>
+						Конфигуратор плеера, позволяет визуально настроить плеер и получить его HTML код для вставки.
+					</td>
+				</tr>
+				<tr>
+					<td>expressInstall.swf</td>
+					<td>
+						Файл инсталляции Flash плеера, предоставленный Adobe.
+					</td>
+				</tr>
+				<tr>
+					<td>kt_player.js</td>
+					<td>
+						JavaScript файл для подключения плеера на страницу.
+					</td>
+				</tr>
+				<tr>
+					<td>kt_player.swf</td>
+					<td>
+						Файл плеера.
+					</td>
+				</tr>
+				<tr>
+					<td>demo/crossdomain.xml</td>
+					<td>
+						Этот файл нужно копировать в корень всех доменов (и субдоменов), с которых плеер загружает
+						какие-либо данные.
+					</td>
+				</tr>
+				<tr>
+					<td>demo/float.xml</td>
+					<td>
+						Пример файла настройки всплывающих баннеров.
+					</td>
+				</tr>
+			</table>
+		</div>
+	</div>
+</body>
+</html>

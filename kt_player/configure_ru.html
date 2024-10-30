@@ -1,0 +1,1142 @@
+<html>
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+	<style type="text/css">
+		html {
+			overflow: -moz-scrollbars-vertical;
+			overflow-y: scroll;
+		}
+
+		input[type=radio] {
+			margin: 0;
+		}
+
+		#player_configurator {
+			width: 900px;
+			margin: 0 auto;
+		}
+
+		#player_configurator * {
+			font-size: 14px;
+			font-family: Verdana, serif;
+		}
+
+		#player_configurator br.clear {
+			line-height: 1px;
+			font-size: 1px;
+			clear: both;
+		}
+
+		#player_configurator ul.tabs {
+			list-style: none;
+			padding: 0;
+			margin: 0 0 0 1px;
+		}
+
+		#player_configurator ul.tabs li {
+			float: left;
+			background: #ccc;
+			border: 1px solid black;
+			margin-left: -1px;
+			cursor: pointer;
+			width: 140px;
+		}
+
+		#player_configurator ul.tabs li#sw_player_configurator_visual {
+			width: 180px;
+		}
+
+		#player_configurator ul.tabs li.active {
+			background: #ddd;
+			cursor: default;
+			border-bottom: 3px solid black;
+		}
+
+		#player_configurator ul.tabs span {
+			display: block;
+			padding: 5px 10px;
+		}
+
+		#player_configurator ul.tabs li.active span {
+			height: 30px;
+		}
+
+		#player_configurator div.warning {
+			font-style: italic;
+			margin-top: 10px;
+		}
+
+		#player_configurator div.section {
+			margin-top: 10px;
+			border-top: 2px solid black;
+			padding-top: 10px;
+		}
+
+		#player_configurator .hint {
+			display: block;
+			font-size: 12px;
+			font-style: italic;
+		}
+
+		#player_configurator label {
+			padding-right: 10px;
+			white-space: nowrap;
+		}
+
+		#player_configurator label.required {
+			font-weight: bold;
+		}
+
+		#player_configurator label.offset {
+			padding-left: 10px;
+		}
+
+		#player_configurator table {
+			width: 100%;
+		}
+
+		#player_configurator td {
+			padding: 5px;
+		}
+
+		#player_configurator td.subheader {
+			padding: 5px;
+			background: #ddd;
+			font-weight: bold;
+		}
+
+		#player_configurator #code_container {
+			margin-top: 20px;
+			padding: 5px;
+			font-family: monospace;
+			background: #eee;
+			overflow-x: scroll;
+			white-space: nowrap;
+		}
+	</style>
+
+	<script type="text/javascript" src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+	<script type="text/javascript" src="/kt_player/kt_player.js"></script>
+	<script type="text/javascript">
+		/* <![CDATA[ */
+
+		var addedDivs = [];
+
+		$(document).ready(function() {
+			$('#tubecontext_domain').val(window.location.host);
+
+			$('#player_configurator li').click(function() {
+				if (!$(this).hasClass('active')) {
+					$('#player_configurator li').removeClass('active');
+					$(this).addClass("active");
+					$('#player_configurator .section').css({display: 'none'});
+					$('#' + this.id.replace('sw_', '')).css({display: 'block'});
+					if (this.id == 'sw_player_configurator_preview') {
+						preview('default');
+						$('#btn_preview, #btn_reset').css({visibility: 'hidden'});
+					} else {
+						$('#btn_preview, #btn_reset').css({visibility: 'visible'});
+					}
+				}
+			});
+			$('#btn_preview').click(function() {
+				$('li#sw_player_configurator_preview').click();
+			});
+			$('#btn_reset').click(function(event) {
+				if (!confirm('Вы уверены, что хотите сбросить настройки?')) {
+					event.preventDefault();
+				}
+			});
+		});
+
+		function preview(phase) {
+			if ($('#enable_tubecontext').prop('checked') && $('#tubecontext_domain').val() != '' && phase != 'tubecontext_loaded') {
+				if (window['ajax_request']) {
+					window['ajax_request'].abort();
+					ajaxProgress(false);
+				}
+
+				window['ajax_request'] = $.ajax('http://www.kernel-video-sharing.com/kt_player/tubecontext.php?domain=' + $('#tubecontext_domain').val(), {
+					dataType: 'script',
+					beforeSend: function() {
+						ajaxProgress(true);
+					},
+					success: function() {
+						if (!window['tube_context_config']) {
+							tubeContextError('Возникла ошибка связи с сервером tubecontext.com, попробуйте еще раз через некоторое время');
+						} else if (window['tube_context_config']['err'] == 'site not found') {
+							tubeContextError('Домен ' + $('#tubecontext_domain').val() + ' не зарегистрирован на сайте tubecontext.com');
+						}
+						ajaxProgress(false);
+						preview('tubecontext_loaded');
+					},
+					error: function() {
+						tubeContextError('Возникла ошибка связи с сервером tubecontext.com, попробуйте еще раз через некоторое время');
+						ajaxProgress(false);
+					},
+					timeout: 10000
+				});
+				return;
+			} else if ($('#enable_teasernet').prop('checked') && $('#teasernet_program_id').val() != '' && $('#teasernet_player_id').val() != '' && phase != 'teasernet_loaded') {
+				if (window['ajax_request']) {
+					window['ajax_request'].abort();
+					ajaxProgress(false);
+				}
+
+				window['ajax_request'] = $.ajax('http://www.kernel-video-sharing.com/kt_player/teasernet.php?program_id=' + $('#teasernet_program_id').val() + '&player_id=' + $('#teasernet_player_id').val(), {
+					dataType: 'script',
+					beforeSend: function() {
+						ajaxProgress(true);
+					},
+					success: function() {
+						if (!window['teasernet_config']) {
+							teaserNetError('Возникла ошибка связи с сервером teasernet.com, попробуйте еще раз через некоторое время');
+						} else if (window['teasernet_config']['error'] == 'player and site id not match') {
+							teaserNetError('Проверьте правильность ID площадки: ' + $('#teasernet_program_id').val() + ' и плеера: ' + $('#teasernet_player_id').val());
+						}
+						ajaxProgress(false);
+						preview('teasernet_loaded');
+					},
+					error: function() {
+						teaserNetError('Возникла ошибка связи с сервером teasernet.com, попробуйте еще раз через некоторое время');
+						ajaxProgress(false);
+					},
+					timeout: 10000
+				});
+				return;
+			}
+			$('#preview_container').html('<div id="kt_player"></div>');
+			$('#code_container').html('');
+
+			window.scrollTo(0, 0);
+
+			for (var j = 0; j < addedDivs.length; j++) {
+				$(addedDivs[j]).remove();
+			}
+			addedDivs = [];
+
+			var domain = location.protocol + '//' + location.host;
+			if (location.host.indexOf('kernel-video-sharing.com') >= 0) {
+				domain = '';
+			}
+			var form = $('#form_config').get(0);
+			var width = '100%';
+			var height = '100%';
+			var adv_ids = {};
+			var adv_start_html_id = '';
+			var adv_pre_html_id = '';
+			var adv_post_html_id = '';
+			var adv_pause_html_id = '';
+			var logo_position = [0, 0];
+			var flashvars = {};
+			for (var i = 0; i < form.elements.length; i++) {
+				var element = form.elements[i];
+				if (element.disabled) {
+					continue;
+				}
+				if (element.id == 'tubecontext_domain') {
+					continue;
+				}
+				if (element.id == 'teasernet_program_id') {
+					continue;
+				}
+				if (element.id == 'teasernet_player_id') {
+					continue;
+				}
+				if (element.id == 'width' && element.value) {
+					width = element.value;
+					continue;
+				}
+				if (element.id == 'height' && element.value) {
+					height = element.value;
+					continue;
+				}
+				if (element.id == 'logo_position_x') {
+					logo_position[0] = parseInt(element.value);
+					continue;
+				}
+				if (element.id == 'logo_position_y') {
+					logo_position[1] = parseInt(element.value);
+					continue;
+				}
+				if (element.id == 'adv_start_html_id') {
+					adv_start_html_id = element.value;
+				}
+				if (element.id == 'adv_pre_html_id') {
+					adv_pre_html_id = element.value;
+				}
+				if (element.id == 'adv_post_html_id') {
+					adv_post_html_id = element.value;
+				}
+				if (element.id == 'adv_pause_html_id') {
+					adv_pause_html_id = element.value;
+				}
+				if (element.id == 'enable_tubecontext') {
+					if (element.checked && window['tube_context_config']) {
+						if (window['tube_context_config']['InVideoPreRoll']) {
+							flashvars['adv_start_feed'] = window['tube_context_config']['InVideoPreRoll'].toString() + '&ra=1&j=1';
+						}
+						if (window['tube_context_config']['InVideoPostRoll']) {
+							flashvars['adv_post_feed'] = window['tube_context_config']['InVideoPostRoll'].toString() + '&ra=1&j=1';
+						}
+						if (window['tube_context_config']['InVideoPauseRoll']) {
+							flashvars['adv_pause_feed'] = window['tube_context_config']['InVideoPauseRoll'].toString() + '&ra=1&j=1';
+						}
+						if (window['tube_context_config']['InVideoOverlay']) {
+							flashvars['float_feed'] = window['tube_context_config']['InVideoOverlay'].toString() + '&ra=1&j=1';
+						}
+					}
+				} else if (element.id == 'enable_teasernet') {
+					if (element.checked && window['teasernet_config']) {
+						if (window['teasernet_config']['pre-roll']) {
+							flashvars['adv_start_feed'] = window['teasernet_config']['pre-roll'].toString();
+						}
+						if (window['teasernet_config']['post-roll']) {
+							flashvars['adv_post_feed'] = window['teasernet_config']['post-roll'].toString();
+						}
+						if (window['teasernet_config']['pause-roll']) {
+							flashvars['adv_pause_feed'] = window['teasernet_config']['pause-roll'].toString();
+						}
+						if (window['teasernet_config']['overlay']) {
+							flashvars['float_feed'] = window['teasernet_config']['overlay'].toString();
+						}
+					}
+				}
+				if (element.tagName == 'INPUT') {
+					if (element.type == 'text') {
+						if (element.value) {
+							flashvars[element.id] = element.value;
+						}
+					} else if (element.type == 'checkbox') {
+						if (element.value && element.value != 'on' && element.checked) {
+							flashvars[element.id] = element.value;
+						}
+					} else if (element.type == 'radio') {
+						if (element.value && element.value != 'on' && element.checked) {
+							flashvars[element.id] = element.value;
+						}
+					}
+				} else if (element.tagName == 'SELECT') {
+					if (element.options[element.selectedIndex].value) {
+						flashvars[element.id] = element.options[element.selectedIndex].value;
+					}
+				}
+			}
+			if (flashvars['logo_src']) {
+				flashvars['logo_position'] = '[' + logo_position[0] + ',' + logo_position[1] + ']';
+			}
+			var advertisingWidth = '';
+			var advertisingHeight = '';
+			if (width.indexOf('%') > 0) {
+				$('#preview_container').css({width: '100%'});
+				advertisingWidth = Math.floor($('#preview_container').outerWidth() / 2);
+			} else {
+				advertisingWidth = Math.floor(width / 2);
+			}
+			if (height.indexOf('%') > 0) {
+				$('#preview_container').css({height: '480px'});
+				advertisingHeight = Math.floor($('#preview_container').outerHeight() / 2);
+			} else {
+				advertisingHeight = Math.floor(height / 2);
+			}
+
+			var code = '&lt;!-- Вставьте этот код на свою страницу --&gt;<br/>';
+			if (adv_start_html_id) {
+				code += '&lt;div id="' + adv_start_html_id + '" style="position: absolute; width: ' + advertisingWidth + 'px; height: ' + advertisingHeight + 'px; background: #aaa; display: none; text-align: center"&gt;<br/>';
+				code += '&nbsp;&nbsp;&nbsp;&nbsp;Advertising: ' + adv_start_html_id + '&lt;br/&gt;<br/>';
+				code += '&nbsp;&nbsp;&nbsp;&nbsp;&lt;a href="#" class="kt-api-btn-start"&gt;Click here to close&lt;/a&gt;<br/>';
+				code += '&lt;/div&gt;<br/><br/>';
+				var divAdvStart = document.createElement('DIV');
+				divAdvStart.id = adv_start_html_id;
+				$(divAdvStart).css({position: 'absolute', width: advertisingWidth + 'px', height: advertisingHeight + 'px', background: '#aaa', display: 'none', textAlign: 'center'});
+				$(divAdvStart).html('Advertising: ' + adv_start_html_id + '<br/><a href="#" class="kt-api-btn-start">Click here to close</a>');
+				$('body').append(divAdvStart);
+				adv_ids[adv_start_html_id] = true;
+				addedDivs.push(divAdvStart);
+			}
+			if (adv_pre_html_id && !adv_ids[adv_pre_html_id]) {
+				code += '&lt;div id="' + adv_pre_html_id + '" style="position: absolute; width: ' + advertisingWidth + 'px; height: ' + advertisingHeight + 'px; background: #aaa; display: none; text-align: center"&gt;<br/>';
+				code += '&nbsp;&nbsp;&nbsp;&nbsp;Advertising: ' + adv_pre_html_id + '&lt;br/&gt;<br/>';
+				code += '&nbsp;&nbsp;&nbsp;&nbsp;&lt;span class="kt-api-time-left"&gt;&amp;nbsp;&lt;/span&gt; seconds left<br/>';
+				code += '&nbsp;&nbsp;&nbsp;&nbsp;&lt;a href="#" class="kt-api-btn-skip"&gt;Skip advertising&lt;/a&gt;<br/>';
+				code += '&lt;/div&gt;<br/><br/>';
+				var divAdvPre = document.createElement('DIV');
+				divAdvPre.id = adv_pre_html_id;
+				$(divAdvPre).css({position: 'absolute', width: advertisingWidth + 'px', height: advertisingHeight + 'px', background: '#aaa', display: 'none', textAlign: 'center'});
+				$(divAdvPre).html('Advertising: ' + adv_pre_html_id + '<br/><span class="kt-api-time-left">&nbsp;</span> seconds left<br/><a href="#" class="kt-api-btn-skip">Skip advertising</a>');
+				$('body').append(divAdvPre);
+				adv_ids[adv_pre_html_id] = true;
+				addedDivs.push(divAdvPre);
+			}
+			if (adv_post_html_id && !adv_ids[adv_post_html_id]) {
+				code += '&lt;div id="' + adv_post_html_id + '" style="position: absolute; width: ' + advertisingWidth + 'px; height: ' + advertisingHeight + 'px; background: #aaa; display: none; text-align: center"&gt;<br/>';
+				code += '&nbsp;&nbsp;&nbsp;&nbsp;Advertising: ' + adv_post_html_id + '&lt;br/&gt;<br/>';
+				code += '&nbsp;&nbsp;&nbsp;&nbsp;&lt;a href="#" class="kt-api-btn-skip"&gt;Skip advertising&lt;/a&gt;<br/>';
+				code += '&lt;/div&gt;<br/><br/>';
+				var divAdvPost = document.createElement('DIV');
+				divAdvPost.id = adv_post_html_id;
+				$(divAdvPost).css({position: 'absolute', width: advertisingWidth + 'px', height: advertisingHeight + 'px', background: '#aaa', display: 'none', textAlign: 'center'});
+				$(divAdvPost).html('Advertising: ' + adv_post_html_id + '<br/><a href="#" class="kt-api-btn-skip">Skip advertising</a>');
+				$('body').append(divAdvPost);
+				adv_ids[adv_post_html_id] = true;
+				addedDivs.push(divAdvPost);
+			}
+			if (adv_pause_html_id && !adv_ids[adv_pause_html_id]) {
+				code += '&lt;div id="' + adv_pause_html_id + '" style="position: absolute; width: ' + advertisingWidth + 'px; height: ' + advertisingHeight + 'px; background: #aaa; display: none; text-align: center"&gt;<br/>';
+				code += '&nbsp;&nbsp;&nbsp;&nbsp;Advertising: ' + adv_pause_html_id + '&lt;br/&gt;<br/>';
+				code += '&nbsp;&nbsp;&nbsp;&nbsp;&lt;a href="#" class="kt-api-btn-start"&gt;Click here to continue&lt;/a&gt;<br/>';
+				code += '&lt;/div&gt;<br/><br/>';
+				var divAdvPause = document.createElement('DIV');
+				divAdvPause.id = adv_pause_html_id;
+				$(divAdvPause).css({position: 'absolute', width: advertisingWidth + 'px', height: advertisingHeight + 'px', background: '#aaa', display: 'none', textAlign: 'center'});
+				$(divAdvPause).html('Advertising: ' + adv_pause_html_id + '<br/><a href="#" class="kt-api-btn-start">Click here to continue</a>');
+				$('body').append(divAdvPause);
+				adv_ids[adv_pause_html_id] = true;
+				addedDivs.push(divAdvPause);
+			}
+			code += '&lt;script type="text/javascript" src="' + domain + '/kt_player/kt_player.js"&gt;&lt;/script&gt;<br/>';
+			code += '&lt;div id="kt_player" style="visibility: hidden"&gt;<br/>';
+			code += '&nbsp;&nbsp;&nbsp;&nbsp;&lt;a href="http://adobe.com/go/getflashplayer"&gt;This page requires Adobe Flash Player&lt;/a&gt;<br/>';
+			code += '&lt;/div&gt;<br/><br/>';
+			code += '&lt;script type="text/javascript"&gt;<br/>';
+			code += '&nbsp;&nbsp;&nbsp;&nbsp;var flashvars = {<br/>';
+
+			var hasFlashVars = false;
+			for (var prop in flashvars) {
+				code += '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' + prop + ': \'' + escapeJavascript(flashvars[prop]) + '\',<br/>';
+				hasFlashVars = true;
+			}
+			if (hasFlashVars) {
+				code = code.substring(0, code.length - 6) + '<br/>';
+			}
+			code += '&nbsp;&nbsp;&nbsp;&nbsp;};<br/><br/>';
+			code += '&nbsp;&nbsp;&nbsp;&nbsp;var params = {allowfullscreen: \'true\', allowscriptaccess: \'always\'};<br/>';
+			code += '&nbsp;&nbsp;&nbsp;&nbsp;kt_player(\'kt_player\', \'' + domain + '/kt_player/kt_player.swf\', \'' + width + '\', \'' + height + '\', flashvars, params);<br/>';
+			code += '&lt;/script&gt;<br/>';
+			code += '&lt;!-- Вставьте этот код на свою страницу --&gt;<br/>';
+
+			$('#code_container').html(code);
+
+			kt_player('kt_player', '/kt_player/kt_player.swf', width, height, flashvars, {allowfullscreen: 'true', allowscriptaccess: 'always'});
+		}
+
+		function ajaxProgress(value) {
+			if (value) {
+				$('body').append($('<div>', {class: 'ajax_progress'}).css({position: 'absolute', left: '-10px', top: '-10px', width: '10000px', height: '10000px', cursor: 'wait', zIndex: '1000'}));
+			} else {
+				$('div.ajax_progress').remove();
+				window['ajax_request'] = null;
+			}
+		}
+
+		function tubeContextError(message) {
+			if ($('#enable_tubecontext').prop('checked')) {
+				$('#enable_tubecontext').click();
+			}
+			window['tube_context_config'] = null;
+			alert(message);
+		}
+
+		function tubeContextToggle(value) {
+			var cleanFunction = function() {
+				$(this).find('input').each(function() {
+					if (this.type == 'checkbox') {
+						if (this.checked) {
+							$(this).click();
+						}
+					} else if (this.type == 'text') {
+						this.value = '';
+					}
+				});
+			};
+			$('tr.player_configurator_ads_teasernet, tr.player_configurator_ads_start, tr.player_configurator_ads_pre_roll, tr.player_configurator_ads_post_roll, tr.player_configurator_ads_pause, tr.player_configurator_ads_float').toggle(!value).each(cleanFunction);
+
+			$('#tubecontext_domain').prop('disabled', !value);
+		}
+
+		function teaserNetToggle(value) {
+			var cleanFunction = function() {
+				$(this).find('input').each(function() {
+					if (this.type == 'checkbox') {
+						if (this.checked) {
+							$(this).click();
+						}
+					} else if (this.type == 'text') {
+						this.value = '';
+					}
+				});
+			};
+			$('tr.player_configurator_ads_tubecontext, tr.player_configurator_ads_start, tr.player_configurator_ads_pre_roll, tr.player_configurator_ads_post_roll, tr.player_configurator_ads_pause, tr.player_configurator_ads_float').toggle(!value).each(cleanFunction);
+
+			$('#teasernet_program_id').prop('disabled', !value);
+			$('#teasernet_player_id').prop('disabled', !value);
+		}
+
+		function teaserNetError(message) {
+			if ($('#enable_teasernet').prop('checked')) {
+				$('#enable_teasernet').click();
+			}
+			window['teasernet_config'] = null;
+			alert(message);
+		}
+
+		function escapeJavascript(string) {
+			if (string) {
+				string = string.replace(/'/g, '\\\'');
+				string = string.replace(/"/g, '&quot;');
+			}
+			return string;
+		}
+		/* ]]> */
+	</script>
+</head>
+<body>
+	<div id="player_configurator">
+		<ul class="tabs">
+			<li id="sw_player_configurator_visual" class="active"><span>Визуальные свойства</span></li>
+			<li id="sw_player_configurator_brand"><span>Брэндинг</span></li>
+			<li id="sw_player_configurator_ads"><span>Реклама</span></li>
+			<li id="sw_player_configurator_slots"><span>Потоки видео</span></li>
+			<li id="sw_player_configurator_preview"><span>Результат</span></li>
+		</ul>
+		<br class="clear"/>
+		<div class="warning">
+			Обратите внимание, что некоторые ваши изображения могут не работать из-за кросдоменных ограничений в
+			браузере. Они будут работать если плеер загружается с этого же домена.
+		</div>
+		<form id="form_config" action="" onsubmit="return false;">
+			<div class="section" id="player_configurator_visual" style="display: block">
+				<table>
+					<tr>
+						<td>
+							<label for="width" class="required">Размер плеера (*):</label>
+						</td>
+						<td>
+							<input type="text" id="width" value="854" size="10"/>
+							x
+							<input type="text" id="height" value="480" size="10"/>
+							<input type="button" value="100%" onclick="$('#width, #height').val('100%')"/>
+							<span class="hint">вы можете указать размеры плеера в пикселях, либо 100%, если хотите чтобы плеер подгонялся под размеры контейнера</span>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label for="hide_controlbar">Поведение контролбара:</label>
+						</td>
+						<td>
+							<select id="hide_controlbar">
+								<option value="">Всегда показывать</option>
+								<option value="1" selected="selected">Прятать</option>
+								<option value="2">Никогда не показывать</option>
+							</select>
+							<span class="hint">управляет поведением контролбара; не влияет на полноэкранный режим</span>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label for="hide_style">Стиль спрятывания <br/> контролбара:</label>
+						</td>
+						<td>
+							<select id="hide_style">
+								<option value="">Движение</option>
+								<option value="fade" selected="selected">Исчезание</option>
+							</select>
+							<span class="hint">настраивает, каким образом прячется контролбар в полноэкранном режиме и при соотв. опции в поведении контролбара</span>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label for="skin">Скин:</label>
+						</td>
+						<td>
+							<select id="skin">
+								<option value="">Черный</option>
+								<option value="2">Белый</option>
+							</select>
+							<span class="hint">позволяет выбрать один из 2 предустановленных скинов</span>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label for="preview_url">Постер:</label>
+						</td>
+						<td>
+							<input type="text" id="preview_url" value="http://www.kernel-video-sharing.com/kt_player/poster.jpg" size="40"/>
+							<input type="button" value="Пример" onclick="$('#preview_url').val('http://www.kernel-video-sharing.com/kt_player/poster.jpg')"/>
+							<span class="hint">изображение постера должно находиться на этом же домене, либо в случае хотлинкования со стороннего домена не должно иметь защиты от хотлинка</span>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label>Выключить масштабирование <br/> постера:</label>
+						</td>
+						<td>
+							<input type="checkbox" id="disable_preview_resize" value="true"/>
+							<label for="disable_preview_resize">не масштабировать постер</label>
+							<span class="hint">по умолчанию плеер растягивает постер на весь экран; используйте эту опцию чтобы плеер показывал постер в центре без масштабирования</span>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label for="scaling">Пропорции видео:</label>
+						</td>
+						<td>
+							<select id="scaling">
+								<option value="">Сохранять пропорции</option>
+								<option value="fill">Масштабировать до пропорций плеера</option>
+								<option value="crop">Обрезать до соответствия пропорциям плеера</option>
+							</select>
+							<span class="hint">при сохранении пропорций у видео могут появиться черные полосы сверху или сбоку; масштабирование может исказить оригинальные пропорции видео</span>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label>Автозапуск:</label>
+						</td>
+						<td>
+							<input type="checkbox" id="autoplay" value="true"/>
+							<label for="autoplay">включить автозапуск</label>
+							<span class="hint">плеер начнет проигрывание автоматически после полной инициализации</span>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label>Код embed:</label>
+						</td>
+						<td>
+							<input type="checkbox" id="embed" value="1"/>
+							<label for="embed">включить возможность получить embed код</label>
+							<span class="hint">если включено, плеер позволит скопировать свой embed код</span>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label for="permalink_url">Ссылка на страницу:</label>
+						</td>
+						<td>
+							<input type="text" id="permalink_url" value="" size="40"/>
+							<input type="button" value="Пример" onclick="$('#permalink_url').val('http://google.com')"/>
+							<span class="hint">если указана, плеер позволит скопировать этот адрес</span>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label for="sec">Ограничить длительность:</label>
+						</td>
+						<td>
+							<input type="text" id="sec" value="" size="10"/>
+							<span class="hint">ограничение длительности в секундах</span>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label for="bt">Размер буфера:</label>
+						</td>
+						<td>
+							<input type="text" id="bt" value="5" size="10"/>
+							<span class="hint">размер буфера в секундах; плеер начнет проигрывание только после того, как в буфер будет загружен необходимый объем информации</span>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label for="urls_in_same_window">При кликах:</label>
+						</td>
+						<td>
+							<select id="urls_in_same_window">
+								<option value="">Открывать в новой закладке (окне)</option>
+								<option value="1">Открывать в этой же закладке (окне)</option>
+							</select>
+							<span class="hint">как должны обрабатываться клики на рекламу / брэндинг</span>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label>Выключить перемотку:</label>
+						</td>
+						<td>
+							<input type="checkbox" id="flv_stream" value="false"/>
+							<label for="flv_stream">сервер не поддерживает перемотку</label>
+							<span class="hint">позволяет выключить перемотку, если она не поддерживается сервером</span>
+						</td>
+					</tr>
+				</table>
+			</div>
+			<div class="section" id="player_configurator_brand" style="display: none">
+				<table>
+					<tr>
+						<td>
+							<label for="logo_src">Логотип:</label>
+						</td>
+						<td>
+							<input type="text" id="logo_src" value="" size="40"/>
+							<input type="button" value="Пример" onclick="$('#logo_src').val('http://www.kernel-video-sharing.com/kt_player/logo.png')"/>
+							<span class="hint">логотип для отображения поверх плеера; изображение должно находиться на этом же домене, либо в случае хотлинкования со стороннего домена не должно иметь защиты от хотлинка</span>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label for="logo_url">URL клика на логотип:</label>
+						</td>
+						<td>
+							<input type="text" id="logo_url" value="" size="40"/>
+							<input type="button" value="Пример" onclick="$('#logo_url').val('http://google.com')"/>
+							<span class="hint">укажите, куда будут перенаправлены пользователи, кликнувшие на ваш логотип</span>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label for="logo_anchor">Расположение:</label>
+						</td>
+						<td>
+							<select id="logo_anchor">
+								<option value="">Сверху-слева</option>
+								<option value="topright">Сверху-справа</option>
+								<option value="bottomright">Снизу-справа</option>
+								<option value="bottomleft">Снизу-слева</option>
+								<option value="bottomline">Линия снизу</option>
+								<option value="topline">Линия сверху</option>
+							</select>
+							<label for="logo_position_x" class="offset">Смещение по X:</label><input type="text" id="logo_position_x" value="0" size="10"/>
+							<label for="logo_position_y" class="offset">Смещение по Y:</label><input type="text" id="logo_position_y" value="0" size="10"/>
+							<span class="hint">положение логотипа относительно плеера и его смещение при необходимости</span>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label for="mlogo">Текст на контролбаре:</label>
+						</td>
+						<td>
+							<input type="text" id="mlogo" value="" size="40"/>
+							<input type="button" value="Пример" onclick="$('#mlogo').val('Get more!')"/>
+							<span class="hint">позволяет вывести небольшую текстовку на контролбаре</span>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label for="mlogo_link">URL клика по тексту:</label>
+						</td>
+						<td>
+							<input type="text" id="mlogo_link" value="" size="40"/>
+							<input type="button" value="Пример" onclick="$('#mlogo_link').val('http://google.com')"/>
+							<span class="hint">укажите, куда будут перенаправлены пользователи, кликнувшие по текстовке на контролбаре</span>
+						</td>
+					</tr>
+				</table>
+			</div>
+			<div class="section" id="player_configurator_ads" style="display: none">
+				<table>
+					<tr class="player_configurator_ads_tubecontext">
+						<td>
+							<label for="enable_tubecontext">Реклама от <a href="http://tubecontext.com" target="_blank">TubeContext</a>:</label>
+						</td>
+						<td>
+							<input type="checkbox" id="enable_tubecontext" onclick="tubeContextToggle(this.checked)"/>
+							<label for="enable_tubecontext">включить для домена:</label>
+							<input type="text" id="tubecontext_domain" value="kernel-video-sharing.com" size="40" disabled="disabled"/>
+							<span class="hint">если включено, то настройки pre-roll рекламы, post-roll рекламы, рекламы на паузе и всплывающей рекламы возьмутся из настроек провайдера TubeContext для указанного домена</span>
+						</td>
+					</tr>
+					<tr class="player_configurator_ads_teasernet">
+						<td>
+							<label for="enable_teasernet">Реклама от <a href="http://teasernet.com" target="_blank">TeaserNet</a>:</label>
+						</td>
+						<td>
+							<input type="checkbox" id="enable_teasernet" onclick="teaserNetToggle(this.checked)"/>
+							<label for="enable_teasernet">включить для площадки (id):</label>
+							<input type="text" id="teasernet_program_id" value="" size="10" disabled="disabled"/>
+							&nbsp;&nbsp;&nbsp;<label for="teasernet_player_id">id плеера:</label>
+							<input type="text" id="teasernet_player_id" value="" size="10" disabled="disabled"/>
+							<span class="hint">
+								если включено, то настройки pre-roll рекламы, post-roll рекламы, рекламы на паузе и всплывающей рекламы возьмутся из настроек провайдера TeaserNet для указанной площадки и плеера<br/>
+								<b>ВНИМАНИЕ:</b> реклама в фиде появится в течение 15 минут после его первого использования, если вы хотите увидеть в конфигураторе, как она работает, повторите настройку через 15 минут
+							</span>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label for="video_click_url">Клик по области видео:</label>
+						</td>
+						<td>
+							<input type="text" id="video_click_url" value="" size="40"/>
+							<input type="button" value="Пример" onclick="$('#video_click_url').val('http://google.com')"/>
+							<span class="hint">вы можете указать URL, куда будут перенаправлены пользователи, кликнувшие по области видео; если не указано - то клик по области видео будет включать режим паузы</span>
+						</td>
+					</tr>
+					<tr class="player_configurator_ads_start">
+						<td>
+							<label for="adv_start_html_id">Реклама при инициализации:</label>
+						</td>
+						<td>
+							<input type="text" id="adv_start_html_id" value="" size="40"/>
+							<input type="button" value="Пример" onclick="$('#adv_start_html_id').val('player_adv_start')"/>
+							<span class="hint">укажите ID контейнера HTML, который должен отображаться поверх плеера при инициализации; этот контейнер может содержать дочерний элемент с class="kt-api-btn-start", к которому автоматически подключится обработчик клика для начала проигрывания</span>
+						</td>
+					</tr>
+					<tr class="player_configurator_ads_pre_roll">
+						<td colspan="2" class="subheader">Pre-roll реклама (перед проигрыванием видео)</td>
+					</tr>
+					<tr class="player_configurator_ads_pre_roll">
+						<td>
+							<label for="adv_pre_html_id">Содержимое:</label>
+						</td>
+						<td>
+							<input type="checkbox" id="adv_pre_roll_sw_html" onclick="$('#adv_pre_html_id, #adv_pre_html_example').prop('disabled', !this.checked); $('#adv_pre_duration, #adv_pre_duration_example').prop('disabled', !this.checked && !$('#adv_pre_roll_sw_flash').get(0).checked);"><label for="adv_pre_roll_sw_html">HTML содержимое</label>
+							<input type="text" id="adv_pre_html_id" value="" size="40" disabled="disabled"/>
+							<input type="button" id="adv_pre_html_example" value="Пример" disabled="disabled" onclick="$('#adv_pre_html_id').val('player_adv_pre')"/>
+							<span class="hint">укажите ID контейнера HTML, который должен отображаться поверх плеера в качестве pre-roll рекламы; этот контейнер может содержать дочерний элемент с class="kt-api-time-left", содержимое которого будет автоматически обновляться с указанием кол-ва секунд до конца рекламы (обратный счетчик), а также дочерний элемент с class="kt-api-btn-skip", к которому автоматически подключится обработчик клика для пропуска рекламы</span>
+							<br/>
+							<input type="checkbox" id="adv_pre_roll_sw_flash" onclick="$('#adv_pre_src, #adv_pre_src_example, #adv_pre_url, #adv_pre_url_example').prop('disabled', !this.checked); $('#adv_pre_duration, #adv_pre_duration_example').prop('disabled', !this.checked && !$('#adv_pre_roll_sw_html').get(0).checked);"><label for="adv_pre_roll_sw_flash">Flash содержимое</label>
+							<input type="text" id="adv_pre_src" value="" size="40" disabled="disabled"/>
+							<input type="button" id="adv_pre_src_example" value="Пример" disabled="disabled" onclick="$('#adv_pre_src').val('http://www.kernel-video-sharing.com/kt_player/advertising.jpg')"/>
+							<span class="hint">укажите ссылку на изображение или видеофайл, которые должны быть использованы плеером в качестве pre-roll баннера</span>
+						</td>
+					</tr>
+					<tr class="player_configurator_ads_pre_roll">
+						<td>
+							<label for="adv_pre_duration">Длительность рекламы:</label>
+						</td>
+						<td>
+							<input type="text" id="adv_pre_duration" value="" size="40" disabled="disabled"/>
+							<input type="button" id="adv_pre_duration_example" value="Пример" disabled="disabled" onclick="$('#adv_pre_duration').val('10')"/>
+							<span class="hint">длительность показа рекламы в секундах</span>
+						</td>
+					</tr>
+					<tr class="player_configurator_ads_pre_roll">
+						<td>
+							<label for="adv_pre_url">URL клика:</label>
+						</td>
+						<td>
+							<input type="text" id="adv_pre_url" value="" size="40" disabled="disabled"/>
+							<input type="button" id="adv_pre_url_example" value="Пример" disabled="disabled" onclick="$('#adv_pre_url').val('http://google.com')"/>
+							<span class="hint">укажите, куда будут перенаправлены пользователи, кликнувшие по Flash рекламе; для рекламы на основе HTML клик должен обрабатываться вашим HTML содержимым</span>
+						</td>
+					</tr>
+					<tr class="player_configurator_ads_post_roll">
+						<td colspan="2" class="subheader">Post-roll реклама (после проигрывания видео)</td>
+					</tr>
+					<tr class="player_configurator_ads_post_roll">
+						<td>
+							<label for="adv_post_html_id">Содержимое:</label>
+						</td>
+						<td>
+							<input type="checkbox" id="adv_post_roll_sw_html" onclick="$('#adv_post_html_id, #adv_post_html_example').prop('disabled', !this.checked); $('#adv_post_duration, #adv_post_duration_example').prop('disabled', !this.checked && !$('#adv_post_roll_sw_flash').get(0).checked);"><label for="adv_post_roll_sw_html">HTML содержимое</label>
+							<input type="text" id="adv_post_html_id" value="" size="40" disabled="disabled"/>
+							<input type="button" id="adv_post_html_example" value="Пример" disabled="disabled" onclick="$('#adv_post_html_id').val('player_adv_post')"/>
+							<span class="hint">укажите ID контейнера HTML, который должен отображаться поверх плеера в качестве post-roll рекламы; этот контейнер может содержать дочерний элемент с class="kt-api-btn-skip", к которому автоматически подключится обработчик клика для пропуска рекламы</span>
+							<br/>
+							<input type="checkbox" id="adv_post_roll_sw_flash" onclick="$('#adv_post_src, #adv_post_src_example, #adv_post_url, #adv_post_url_example').prop('disabled', !this.checked); $('#adv_post_duration, #adv_post_duration_example').prop('disabled', !this.checked && !$('#adv_post_roll_sw_html').get(0).checked);"><label for="adv_post_roll_sw_flash">Flash содержимое</label>
+							<input type="text" id="adv_post_src" value="" size="40" disabled="disabled"/>
+							<input type="button" id="adv_post_src_example" value="Пример" disabled="disabled" onclick="$('#adv_post_src').val('http://www.kernel-video-sharing.com/kt_player/advertising.jpg')"/>
+							<span class="hint">укажите ссылку на изображение или видеофайл, которые должны быть использованы плеером в качестве post-roll баннера</span>
+						</td>
+					</tr>
+					<tr class="player_configurator_ads_post_roll">
+						<td>
+							<label for="adv_post_duration">Длительность рекламы:</label>
+						</td>
+						<td>
+							<input type="text" id="adv_post_duration" value="" size="40" disabled="disabled"/>
+							<input type="button" id="adv_post_duration_example" value="Пример" disabled="disabled" onclick="$('#adv_post_duration').val('10')"/>
+							<span class="hint">длительность показа рекламы в секундах</span>
+						</td>
+					</tr>
+					<tr class="player_configurator_ads_post_roll">
+						<td>
+							<label for="adv_post_url">URL клика:</label>
+						</td>
+						<td>
+							<input type="text" id="adv_post_url" value="" size="40" disabled="disabled"/>
+							<input type="button" id="adv_post_url_example" value="Пример" disabled="disabled" onclick="$('#adv_post_url').val('http://google.com')"/>
+							<span class="hint">укажите, куда будут перенаправлены пользователи, кликнувшие по Flash рекламе; для рекламы на основе HTML клик должен обрабатываться вашим HTML содержимым</span>
+						</td>
+					</tr>
+					<tr class="player_configurator_ads_pause">
+						<td colspan="2" class="subheader">Реклама на паузе</td>
+					</tr>
+					<tr class="player_configurator_ads_pause">
+						<td>
+							<label for="adv_pause_html_id">Содержимое:</label>
+						</td>
+						<td>
+							<input type="checkbox" id="adv_pause_roll_sw_html" onclick="$('#adv_pause_html_id, #adv_pause_html_example').prop('disabled', !this.checked);"><label for="adv_pause_roll_sw_html">HTML содержимое</label>
+							<input type="text" id="adv_pause_html_id" value="" size="40" disabled="disabled"/>
+							<input type="button" id="adv_pause_html_example" value="Пример" disabled="disabled" onclick="$('#adv_pause_html_id').val('player_adv_pause')"/>
+							<span class="hint">укажите ID контейнера HTML, который должен отображаться поверх плеера в режиме паузы; этот контейнер может содержать дочерний элемент с class="kt-api-btn-start", к которому автоматически подключится обработчик клика для продолжения проигрывания</span>
+							<br/>
+							<input type="checkbox" id="adv_pause_roll_sw_flash" onclick="$('#adv_pause_src, #adv_pause_src_example, #adv_pause_url, #adv_pause_url_example').prop('disabled', !this.checked);"><label for="adv_pause_roll_sw_flash">Flash содержимое</label>
+							<input type="text" id="adv_pause_src" value="" size="40" disabled="disabled"/>
+							<input type="button" id="adv_pause_src_example" value="Пример" disabled="disabled" onclick="$('#adv_pause_src').val('http://www.kernel-video-sharing.com/kt_player/advertising.jpg')"/>
+							<span class="hint">укажите ссылку на изображение, которое должно быть использовано плеером в качестве баннера во время паузы</span>
+						</td>
+					</tr>
+					<tr class="player_configurator_ads_pause">
+						<td>
+							<label for="adv_pause_url">URL клика:</label>
+						</td>
+						<td>
+							<input type="text" id="adv_pause_url" value="" size="40" disabled="disabled"/>
+							<input type="button" id="adv_pause_url_example" value="Пример" disabled="disabled" onclick="$('#adv_pause_url').val('http://google.com')"/>
+							<span class="hint">укажите, куда будут перенаправлены пользователи, кликнувшие по Flash рекламе; для рекламы на основе HTML клик должен обрабатываться вашим HTML содержимым</span>
+						</td>
+					</tr>
+					<tr class="player_configurator_ads_float">
+						<td colspan="2" class="subheader">Всплывающая реклама</td>
+					</tr>
+					<tr class="player_configurator_ads_float">
+						<td>
+							<label for="float_src">Flash содержимое:</label>
+						</td>
+						<td>
+							<input type="text" id="float_src" value="" size="40"/>
+							<input type="button" id="float_src_example" value="Пример" onclick="$('#float_src').val('http://www.kernel-video-sharing.com/kt_player/float.xml')"/>
+							<span class="hint">укажите ссылку на XML файл специального формата, который задает конфигурацию всплывающей рекламы (время появления, длительность и рекламное изображение)</span>
+						</td>
+					</tr>
+					<tr class="player_configurator_ads_float">
+						<td>
+							<label>Опции:</label>
+						</td>
+						<td>
+							<input type="checkbox" id="adreplay" value="true"/>
+							<label for="adreplay">Повторять всплывающую рекламу при повторном просмотре</label>
+							<span class="hint">по умолчанию при повторном просмотре видео всплывающая реклама не показывается</span>
+							<br/>
+							<input type="checkbox" id="disable_float_resize" value="true"/>
+							<label for="disable_float_resize">Не подстраивать всплывающую рекламу под ширину плеера</label>
+							<span class="hint">по умолчанию всплывающая реклама подстраивается под ширину плеера, выберите эту опцию, чтобы всплывающая реклама отображалась всегда в исходных размерах</span>
+						</td>
+					</tr>
+					<tr class="player_configurator_ads_mover">
+						<td colspan="2" class="subheader">Реклама при наведении мыши</td>
+					</tr>
+					<tr class="player_configurator_ads_mover">
+						<td>
+							<label for="adv_mover_src">Flash содержимое:</label>
+						</td>
+						<td>
+							<input type="text" id="adv_mover_src" value="" size="40"/>
+							<input type="button" id="adv_mover_src_example" value="Пример" onclick="$('#adv_mover_src').val('http://www.kernel-video-sharing.com/kt_player/mouseover.jpg')"/>
+							<span class="hint">укажите ссылку на изображение, которое должно быть отображено плеером при наведении на него курсора мыши</span>
+						</td>
+					</tr>
+					<tr class="player_configurator_ads_mover">
+						<td>
+							<label for="adv_mover_url">URL клика:</label>
+						</td>
+						<td>
+							<input type="text" id="adv_mover_url" value="" size="40"/>
+							<input type="button" id="adv_mover_url_example" value="Пример" onclick="$('#adv_mover_url').val('http://google.com')"/>
+							<span class="hint">укажите, куда будут перенаправлены пользователи, кликнувшие по этой рекламе</span>
+						</td>
+					</tr>
+				</table>
+			</div>
+			<div class="section" id="player_configurator_slots" style="display: none">
+				<table>
+					<tr>
+						<td>
+							<label for="video_url" class="required">Основное видео (*):</label>
+						</td>
+						<td>
+							<input type="text" id="video_url" value="http://www.kernel-video-sharing.com/kt_player/720p.mp4" size="40"/>
+							<input type="button" value="Пример" onclick="$('#video_url').val('http://www.kernel-video-sharing.com/kt_player/720p.mp4'); $('#video_url_text').val('720p')"/>
+							<span class="hint">главный видеофайл для проигрывания</span>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label for="video_url_text" class="required">Название основного видео (*):</label>
+						</td>
+						<td>
+							<input type="text" id="video_url_text" value="720p" size="40"/>
+							<input type="button" value="Пример" onclick="$('#video_url_text').val('720p')"/>
+							<span class="hint">название для главного видеофайла; оно не будет использоваться, если у вас только 1 видеофайл</span>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label for="streaming_param">Параметр перемотки:</label>
+						</td>
+						<td>
+							<input type="text" id="streaming_param" value="" size="40"/>
+							<span class="hint">параметр перемотки, в котором плеер должен передавать смещение при перемотке; если оставлен пустым то будет использоваться стандартный для nginx параметр <b>start</b></span>
+						</td>
+					</tr>
+					<tr>
+						<td colspan="2" class="subheader">Альтернативное видео #1 (для поддержки разного качества либо рекламы)</td>
+					</tr>
+					<tr>
+						<td>
+							<label for="video_alt_url_redirect">При выборе:</label>
+						</td>
+						<td>
+							<input type="radio" id="video_alt_url_redirect_no" name="video_alt_url_redirect" value="" checked="checked" onclick="$('#video_alt_url_label').html('URL видеофайла:'); $('#video_alt_url').val('')"/>
+							<label for="video_alt_url_redirect_no">Показывать видео</label>
+							<input type="radio" id="video_alt_url_redirect" name="video_alt_url_redirect" value="1" onclick="$('#video_alt_url_label').html('URL рекламы:'); $('#video_alt_url').val('')"/>
+							<label for="video_alt_url_redirect">Отправлять на рекламу</label>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label id="video_alt_url_label" for="video_alt_url">URL видеофайла:</label>
+						</td>
+						<td>
+							<input type="text" id="video_alt_url" value="" size="40"/>
+							<input type="button" value="Пример" onclick="$('#video_alt_url').val('http://www.kernel-video-sharing.com/kt_player/480p.mp4'); $('#video_alt_url_text').val('480p')"/>
+							<span class="hint">альтернативный слот #1</span>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label for="video_alt_url_text">Название:</label>
+						</td>
+						<td>
+							<input type="text" id="video_alt_url_text" value="" size="40"/>
+							<input type="button" value="Пример" onclick="$('#video_alt_url_text').val('480p')"/>
+							<span class="hint">название альтернативного слота #1 при отображении в плеере</span>
+						</td>
+					</tr>
+					<tr>
+						<td colspan="2" class="subheader">Альтернативное видео #2 (для поддержки разного качества либо рекламы)</td>
+					</tr>
+					<tr>
+						<td>
+							<label for="video_alt_url2_redirect">Показывать видео:</label>
+						</td>
+						<td>
+							<input type="radio" id="video_alt_url2_redirect_no" name="video_alt_url2_redirect" value="" checked="checked" onclick="$('#video_alt_url2_label').html('URL видеофайла:'); $('#video_alt_url2').val('')"/>
+							<label for="video_alt_url2_redirect_no">Показывать видео</label>
+							<input type="radio" id="video_alt_url2_redirect" name="video_alt_url2_redirect" value="1" onclick="$('#video_alt_url2_label').html('URL рекламы:'); $('#video_alt_url2').val('')"/>
+							<label for="video_alt_url2_redirect">Отправлять на рекламу</label>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label id="video_alt_url2_label" for="video_alt_url2">URL видеофайла:</label>
+						</td>
+						<td>
+							<input type="text" id="video_alt_url2" value="" size="40"/>
+							<input type="button" value="Пример" onclick="$('#video_alt_url2').val('http://www.kernel-video-sharing.com/kt_player/360p.mp4'); $('#video_alt_url2_text').val('360p')"/>
+							<span class="hint">альтернативный слот #2</span>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label for="video_alt_url2_text">Название:</label>
+						</td>
+						<td>
+							<input type="text" id="video_alt_url2_text" value="" size="40"/>
+							<input type="button" value="Пример" onclick="$('#video_alt_url2_text').val('360p')"/>
+							<span class="hint">название альтернативного слота #2 при отображении в плеере</span>
+						</td>
+					</tr>
+					<tr>
+						<td colspan="2" class="subheader">Альтернативное видео #3 (для поддержки разного качества либо рекламы)</td>
+					</tr>
+					<tr>
+						<td>
+							<label for="video_alt_url3_redirect">При выборе:</label>
+						</td>
+						<td>
+							<input type="radio" id="video_alt_url3_redirect_no" name="video_alt_url3_redirect" value="" checked="checked" onclick="$('#video_alt_url3_label').html('URL видеофайла:'); $('#video_alt_url3').val('')"/>
+							<label for="video_alt_url3_redirect_no">Показывать видео</label>
+							<input type="radio" id="video_alt_url3_redirect" name="video_alt_url3_redirect" value="1" onclick="$('#video_alt_url3_label').html('URL рекламы:'); $('#video_alt_url3').val('')"/>
+							<label for="video_alt_url3_redirect">Отправлять на рекламу</label>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label id="video_alt_url3_label" for="video_alt_url3">URL видеофайла:</label>
+						</td>
+						<td>
+							<input type="text" id="video_alt_url3" value="" size="40"/>
+							<input type="button" value="Пример" onclick="$('#video_alt_url3_redirect').click(); $('#video_alt_url3').val('http://google.com'); $('#video_alt_url3_text').val('Full HD')"/>
+							<span class="hint">альтернативный слот #3</span>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label for="video_alt_url3_text">Название:</label>
+						</td>
+						<td>
+							<input type="text" id="video_alt_url3_text" value="" size="40"/>
+							<input type="button" value="Пример" onclick="$('#video_alt_url3_text').val('Full HD')"/>
+							<span class="hint">название альтернативного слота #3 при отображении в плеере</span>
+						</td>
+					</tr>
+					<tr>
+						<td colspan="2" class="subheader">Альтернативное видео #4 (для поддержки разного качества либо рекламы)</td>
+					</tr>
+					<tr>
+						<td>
+							<label for="video_alt_url4_redirect">При выборе:</label>
+						</td>
+						<td>
+							<input type="radio" id="video_alt_url4_redirect_no" name="video_alt_url4_redirect" value="" checked="checked" onclick="$('#video_alt_url4_label').html('URL видеофайла:'); $('#video_alt_url4').val('')"/>
+							<label for="video_alt_url4_redirect_no">Показывать видео</label>
+							<input type="radio" id="video_alt_url4_redirect" name="video_alt_url4_redirect" value="1" onclick="$('#video_alt_url4_label').html('URL рекламы:'); $('#video_alt_url4').val('')"/>
+							<label for="video_alt_url4_redirect">Отправлять на рекламу</label>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label id="video_alt_url4_label" for="video_alt_url4">URL видеофайла:</label>
+						</td>
+						<td>
+							<input type="text" id="video_alt_url4" value="" size="40"/>
+							<span class="hint">альтернативный слот #4</span>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label for="video_alt_url4_text">Название:</label>
+						</td>
+						<td>
+							<input type="text" id="video_alt_url4_text" value="" size="40"/>
+							<span class="hint">название альтернативного слота #4 при отображении в плеере</span>
+						</td>
+					</tr>
+					<tr>
+						<td colspan="2" class="subheader">Альтернативное видео #5 (для поддержки разного качества либо рекламы)</td>
+					</tr>
+					<tr>
+						<td>
+							<label for="video_alt_url5_redirect">При выборе:</label>
+						</td>
+						<td>
+							<input type="radio" id="video_alt_url5_redirect_no" name="video_alt_url5_redirect" value="" checked="checked" onclick="$('#video_alt_url5_label').html('URL видеофайла:'); $('#video_alt_url5').val('')"/>
+							<label for="video_alt_url5_redirect_no">Показывать видео</label>
+							<input type="radio" id="video_alt_url5_redirect" name="video_alt_url5_redirect" value="1" onclick="$('#video_alt_url5_label').html('URL рекламы:'); $('#video_alt_url5').val('')"/>
+							<label for="video_alt_url5_redirect">Отправлять на рекламу</label>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label id="video_alt_url5_label" for="video_alt_url5">URL видеофайла:</label>
+						</td>
+						<td>
+							<input type="text" id="video_alt_url5" value="" size="40"/>
+							<span class="hint">альтернативный слот #5</span>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label for="video_alt_url5_text">Название:</label>
+						</td>
+						<td>
+							<input type="text" id="video_alt_url5_text" value="" size="40"/>
+							<span class="hint">название альтернативного слота #5 при отображении в плеере</span>
+						</td>
+					</tr>
+				</table>
+			</div>
+			<div class="section" id="player_configurator_preview" style="display: none">
+				<div id="preview_container"></div>
+				<div id="code_container"></div>
+			</div>
+			<input type="button" id="btn_preview" value="Результат"/>
+			<input type="reset" id="btn_reset" value="Сбросить"/>
+		</form>
+	</div>
+</body>
+</html>

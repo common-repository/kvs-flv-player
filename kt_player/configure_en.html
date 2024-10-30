@@ -1,0 +1,1054 @@
+<html>
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+	<style type="text/css">
+		html {
+			overflow: -moz-scrollbars-vertical;
+			overflow-y: scroll;
+		}
+
+		input[type=radio] {
+			margin: 0;
+		}
+
+		#player_configurator {
+			width: 900px;
+			margin: 0 auto;
+		}
+
+		#player_configurator * {
+			font-size: 14px;
+			font-family: Verdana, serif;
+		}
+
+		#player_configurator br.clear {
+			line-height: 1px;
+			font-size: 1px;
+			clear: both;
+		}
+
+		#player_configurator ul.tabs {
+			list-style: none;
+			padding: 0;
+			margin: 0 0 0 1px;
+		}
+
+		#player_configurator ul.tabs li {
+			float: left;
+			background: #ccc;
+			border: 1px solid black;
+			margin-left: -1px;
+			cursor: pointer;
+			width: 140px;
+		}
+
+		#player_configurator ul.tabs li#sw_player_configurator_visual {
+			width: 180px;
+		}
+
+		#player_configurator ul.tabs li.active {
+			background: #ddd;
+			cursor: default;
+			border-bottom: 3px solid black;
+		}
+
+		#player_configurator ul.tabs span {
+			display: block;
+			padding: 5px 10px;
+		}
+
+		#player_configurator ul.tabs li.active span {
+			height: 30px;
+		}
+
+		#player_configurator div.warning {
+			font-style: italic;
+			margin-top: 10px;
+		}
+
+		#player_configurator div.section {
+			margin-top: 10px;
+			border-top: 2px solid black;
+			padding-top: 10px;
+		}
+
+		#player_configurator .hint {
+			display: block;
+			font-size: 12px;
+			font-style: italic;
+		}
+
+		#player_configurator label {
+			padding-right: 10px;
+			white-space: nowrap;
+		}
+
+		#player_configurator label.required {
+			font-weight: bold;
+		}
+
+		#player_configurator label.offset {
+			padding-left: 10px;
+		}
+
+		#player_configurator table {
+			width: 100%;
+		}
+
+		#player_configurator td {
+			padding: 5px;
+		}
+
+		#player_configurator td.subheader {
+			padding: 5px;
+			background: #ddd;
+			font-weight: bold;
+		}
+
+		#player_configurator #code_container {
+			margin-top: 20px;
+			padding: 5px;
+			font-family: monospace;
+			background: #eee;
+			overflow-x: scroll;
+			white-space: nowrap;
+		}
+	</style>
+
+	<script type="text/javascript" src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+	<script type="text/javascript" src="/kt_player/kt_player.js"></script>
+	<script type="text/javascript">
+		/* <![CDATA[ */
+
+		var addedDivs = [];
+
+		$(document).ready(function() {
+			$('#tubecontext_domain').val(window.location.host);
+
+			$('#player_configurator li').click(function() {
+				if (!$(this).hasClass('active')) {
+					$('#player_configurator li').removeClass('active');
+					$(this).addClass("active");
+					$('#player_configurator .section').css({display: 'none'});
+					$('#' + this.id.replace('sw_', '')).css({display: 'block'});
+					if (this.id == 'sw_player_configurator_preview') {
+						preview('default');
+						$('#btn_preview, #btn_reset').css({visibility: 'hidden'});
+					} else {
+						$('#btn_preview, #btn_reset').css({visibility: 'visible'});
+					}
+				}
+			});
+			$('#btn_preview').click(function() {
+				$('li#sw_player_configurator_preview').click();
+			});
+			$('#btn_reset').click(function(event) {
+				if (!confirm('Are you sure to reset settings?')) {
+					event.preventDefault();
+				}
+			});
+		});
+
+		function preview(phase) {
+			if ($('#enable_tubecontext').prop('checked') && $('#tubecontext_domain').val() != '' && phase != 'tubecontext_loaded') {
+				if (window['ajax_request']) {
+					window['ajax_request'].abort();
+					ajaxProgress(false);
+				}
+
+				window['ajax_request'] = $.ajax('http://www.kernel-video-sharing.com/kt_player/tubecontext.php?domain=' + $('#tubecontext_domain').val(), {
+					dataType: 'script',
+					beforeSend: function() {
+						ajaxProgress(true);
+					},
+					success: function() {
+						if (!window['tube_context_config']) {
+							tubeContextError('An error occurred when communicating with tubecontext.com, please try again later');
+						} else if (window['tube_context_config']['err'] == 'site not found') {
+							tubeContextError($('#tubecontext_domain').val() + ' domain is not registered on tubecontext.com');
+						}
+						ajaxProgress(false);
+						preview('tubecontext_loaded');
+					},
+					error: function() {
+						tubeContextError('An error occurred when communicating with tubecontext.com, please try again later');
+						ajaxProgress(false);
+					},
+					timeout: 10000
+				});
+				return;
+			}
+			$('#preview_container').html('<div id="kt_player"></div>');
+			$('#code_container').html('');
+
+			window.scrollTo(0, 0);
+
+			for (var j = 0; j < addedDivs.length; j++) {
+				$(addedDivs[j]).remove();
+			}
+			addedDivs = [];
+
+			var domain = location.protocol + '//' + location.host;
+			if (location.host.indexOf('kernel-video-sharing.com') >= 0) {
+				domain = '';
+			}
+			var form = $('#form_config').get(0);
+			var width = '100%';
+			var height = '100%';
+			var adv_ids = {};
+			var adv_start_html_id = '';
+			var adv_pre_html_id = '';
+			var adv_post_html_id = '';
+			var adv_pause_html_id = '';
+			var logo_position = [0, 0];
+			var flashvars = {};
+			for (var i = 0; i < form.elements.length; i++) {
+				var element = form.elements[i];
+				if (element.disabled) {
+					continue;
+				}
+				if (element.id == 'tubecontext_domain') {
+					continue;
+				}
+				if (element.id == 'width' && element.value) {
+					width = element.value;
+					continue;
+				}
+				if (element.id == 'height' && element.value) {
+					height = element.value;
+					continue;
+				}
+				if (element.id == 'logo_position_x') {
+					logo_position[0] = parseInt(element.value);
+					continue;
+				}
+				if (element.id == 'logo_position_y') {
+					logo_position[1] = parseInt(element.value);
+					continue;
+				}
+				if (element.id == 'adv_start_html_id') {
+					adv_start_html_id = element.value;
+				}
+				if (element.id == 'adv_pre_html_id') {
+					adv_pre_html_id = element.value;
+				}
+				if (element.id == 'adv_post_html_id') {
+					adv_post_html_id = element.value;
+				}
+				if (element.id == 'adv_pause_html_id') {
+					adv_pause_html_id = element.value;
+				}
+				if (element.id == 'enable_tubecontext') {
+					if (element.checked && window['tube_context_config']) {
+						if (window['tube_context_config']['InVideoPreRoll']) {
+							flashvars['adv_start_feed'] = window['tube_context_config']['InVideoPreRoll'].toString() + '&ra=1&j=1';
+						}
+						if (window['tube_context_config']['InVideoPostRoll']) {
+							flashvars['adv_post_feed'] = window['tube_context_config']['InVideoPostRoll'].toString() + '&ra=1&j=1';
+						}
+						if (window['tube_context_config']['InVideoPauseRoll']) {
+							flashvars['adv_pause_feed'] = window['tube_context_config']['InVideoPauseRoll'].toString() + '&ra=1&j=1';
+						}
+						if (window['tube_context_config']['InVideoOverlay']) {
+							flashvars['float_feed'] = window['tube_context_config']['InVideoOverlay'].toString() + '&ra=1&j=1';
+						}
+					}
+				}
+				if (element.tagName == 'INPUT') {
+					if (element.type == 'text') {
+						if (element.value) {
+							flashvars[element.id] = element.value;
+						}
+					} else if (element.type == 'checkbox') {
+						if (element.value && element.value != 'on' && element.checked) {
+							flashvars[element.id] = element.value;
+						}
+					} else if (element.type == 'radio') {
+						if (element.value && element.value != 'on' && element.checked) {
+							flashvars[element.id] = element.value;
+						}
+					}
+				} else if (element.tagName == 'SELECT') {
+					if (element.options[element.selectedIndex].value) {
+						flashvars[element.id] = element.options[element.selectedIndex].value;
+					}
+				}
+			}
+			if (flashvars['logo_src']) {
+				flashvars['logo_position'] = '[' + logo_position[0] + ',' + logo_position[1] + ']';
+			}
+			var advertisingWidth = '';
+			var advertisingHeight = '';
+			if (width.indexOf('%') > 0) {
+				$('#preview_container').css({width: '100%'});
+				advertisingWidth = Math.floor($('#preview_container').outerWidth() / 2);
+			} else {
+				advertisingWidth = Math.floor(width / 2);
+			}
+			if (height.indexOf('%') > 0) {
+				$('#preview_container').css({height: '480px'});
+				advertisingHeight = Math.floor($('#preview_container').outerHeight() / 2);
+			} else {
+				advertisingHeight = Math.floor(height / 2);
+			}
+
+			var code = '&lt;!-- Paste this code to your page --&gt;<br/>';
+			if (adv_start_html_id) {
+				code += '&lt;div id="' + adv_start_html_id + '" style="position: absolute; width: ' + advertisingWidth + 'px; height: ' + advertisingHeight + 'px; background: #aaa; display: none; text-align: center"&gt;<br/>';
+				code += '&nbsp;&nbsp;&nbsp;&nbsp;Advertising: ' + adv_start_html_id + '&lt;br/&gt;<br/>';
+				code += '&nbsp;&nbsp;&nbsp;&nbsp;&lt;a href="#" class="kt-api-btn-start"&gt;Click here to close&lt;/a&gt;<br/>';
+				code += '&lt;/div&gt;<br/><br/>';
+				var divAdvStart = document.createElement('DIV');
+				divAdvStart.id = adv_start_html_id;
+				$(divAdvStart).css({position: 'absolute', width: advertisingWidth + 'px', height: advertisingHeight + 'px', background: '#aaa', display: 'none', textAlign: 'center'});
+				$(divAdvStart).html('Advertising: ' + adv_start_html_id + '<br/><a href="#" class="kt-api-btn-start">Click here to close</a>');
+				$('body').append(divAdvStart);
+				adv_ids[adv_start_html_id] = true;
+				addedDivs.push(divAdvStart);
+			}
+			if (adv_pre_html_id && !adv_ids[adv_pre_html_id]) {
+				code += '&lt;div id="' + adv_pre_html_id + '" style="position: absolute; width: ' + advertisingWidth + 'px; height: ' + advertisingHeight + 'px; background: #aaa; display: none; text-align: center"&gt;<br/>';
+				code += '&nbsp;&nbsp;&nbsp;&nbsp;Advertising: ' + adv_pre_html_id + '&lt;br/&gt;<br/>';
+				code += '&nbsp;&nbsp;&nbsp;&nbsp;&lt;span class="kt-api-time-left"&gt;&amp;nbsp;&lt;/span&gt; seconds left<br/>';
+				code += '&nbsp;&nbsp;&nbsp;&nbsp;&lt;a href="#" class="kt-api-btn-skip"&gt;Skip advertising&lt;/a&gt;<br/>';
+				code += '&lt;/div&gt;<br/><br/>';
+				var divAdvPre = document.createElement('DIV');
+				divAdvPre.id = adv_pre_html_id;
+				$(divAdvPre).css({position: 'absolute', width: advertisingWidth + 'px', height: advertisingHeight + 'px', background: '#aaa', display: 'none', textAlign: 'center'});
+				$(divAdvPre).html('Advertising: ' + adv_pre_html_id + '<br/><span class="kt-api-time-left">&nbsp;</span> seconds left<br/><a href="#" class="kt-api-btn-skip">Skip advertising</a>');
+				$('body').append(divAdvPre);
+				adv_ids[adv_pre_html_id] = true;
+				addedDivs.push(divAdvPre);
+			}
+			if (adv_post_html_id && !adv_ids[adv_post_html_id]) {
+				code += '&lt;div id="' + adv_post_html_id + '" style="position: absolute; width: ' + advertisingWidth + 'px; height: ' + advertisingHeight + 'px; background: #aaa; display: none; text-align: center"&gt;<br/>';
+				code += '&nbsp;&nbsp;&nbsp;&nbsp;Advertising: ' + adv_post_html_id + '&lt;br/&gt;<br/>';
+				code += '&nbsp;&nbsp;&nbsp;&nbsp;&lt;a href="#" class="kt-api-btn-skip"&gt;Skip advertising&lt;/a&gt;<br/>';
+				code += '&lt;/div&gt;<br/><br/>';
+				var divAdvPost = document.createElement('DIV');
+				divAdvPost.id = adv_post_html_id;
+				$(divAdvPost).css({position: 'absolute', width: advertisingWidth + 'px', height: advertisingHeight + 'px', background: '#aaa', display: 'none', textAlign: 'center'});
+				$(divAdvPost).html('Advertising: ' + adv_post_html_id + '<br/><a href="#" class="kt-api-btn-skip">Skip advertising</a>');
+				$('body').append(divAdvPost);
+				adv_ids[adv_post_html_id] = true;
+				addedDivs.push(divAdvPost);
+			}
+			if (adv_pause_html_id && !adv_ids[adv_pause_html_id]) {
+				code += '&lt;div id="' + adv_pause_html_id + '" style="position: absolute; width: ' + advertisingWidth + 'px; height: ' + advertisingHeight + 'px; background: #aaa; display: none; text-align: center"&gt;<br/>';
+				code += '&nbsp;&nbsp;&nbsp;&nbsp;Advertising: ' + adv_pause_html_id + '&lt;br/&gt;<br/>';
+				code += '&nbsp;&nbsp;&nbsp;&nbsp;&lt;a href="#" class="kt-api-btn-start"&gt;Click here to continue&lt;/a&gt;<br/>';
+				code += '&lt;/div&gt;<br/><br/>';
+				var divAdvPause = document.createElement('DIV');
+				divAdvPause.id = adv_pause_html_id;
+				$(divAdvPause).css({position: 'absolute', width: advertisingWidth + 'px', height: advertisingHeight + 'px', background: '#aaa', display: 'none', textAlign: 'center'});
+				$(divAdvPause).html('Advertising: ' + adv_pause_html_id + '<br/><a href="#" class="kt-api-btn-start">Click here to continue</a>');
+				$('body').append(divAdvPause);
+				adv_ids[adv_pause_html_id] = true;
+				addedDivs.push(divAdvPause);
+			}
+			code += '&lt;script type="text/javascript" src="' + domain + '/kt_player/kt_player.js"&gt;&lt;/script&gt;<br/>';
+			code += '&lt;div id="kt_player" style="visibility: hidden"&gt;<br/>';
+			code += '&nbsp;&nbsp;&nbsp;&nbsp;&lt;a href="http://adobe.com/go/getflashplayer"&gt;This page requires Adobe Flash Player&lt;/a&gt;<br/>';
+			code += '&lt;/div&gt;<br/><br/>';
+			code += '&lt;script type="text/javascript"&gt;<br/>';
+			code += '&nbsp;&nbsp;&nbsp;&nbsp;var flashvars = {<br/>';
+
+			var hasFlashVars = false;
+			for (var prop in flashvars) {
+				code += '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' + prop + ': \'' + escapeJavascript(flashvars[prop]) + '\',<br/>';
+				hasFlashVars = true;
+			}
+			if (hasFlashVars) {
+				code = code.substring(0, code.length - 6) + '<br/>';
+			}
+			code += '&nbsp;&nbsp;&nbsp;&nbsp;};<br/><br/>';
+			code += '&nbsp;&nbsp;&nbsp;&nbsp;var params = {allowfullscreen: \'true\', allowscriptaccess: \'always\'};<br/>';
+			code += '&nbsp;&nbsp;&nbsp;&nbsp;kt_player(\'kt_player\', \'' + domain + '/kt_player/kt_player.swf\', \'' + width + '\', \'' + height + '\', flashvars, params);<br/>';
+			code += '&lt;/script&gt;<br/>';
+			code += '&lt;!-- Paste this code to your page --&gt;<br/>';
+
+			$('#code_container').html(code);
+
+			kt_player('kt_player', '/kt_player/kt_player.swf', width, height, flashvars, {allowfullscreen: 'true', allowscriptaccess: 'always'});
+		}
+
+		function ajaxProgress(value) {
+			if (value) {
+				$('body').append($('<div>', {class: 'ajax_progress'}).css({position: 'absolute', left: '-10px', top: '-10px', width: '10000px', height: '10000px', cursor: 'wait', zIndex: '1000'}));
+			} else {
+				$('div.ajax_progress').remove();
+				window['ajax_request'] = null;
+			}
+		}
+
+		function tubeContextError(message) {
+			if ($('#enable_tubecontext').prop('checked')) {
+				$('#enable_tubecontext').click();
+			}
+			window['tube_context_config'] = null;
+			alert(message);
+		}
+
+		function tubeContextToggle(value) {
+			var cleanFunction = function() {
+				$(this).find('input').each(function() {
+					if (this.type == 'checkbox') {
+						if (this.checked) {
+							$(this).click();
+						}
+					} else if (this.type == 'text') {
+						this.value = '';
+					}
+				});
+			};
+			$('tr.player_configurator_ads_start, tr.player_configurator_ads_pre_roll, tr.player_configurator_ads_post_roll, tr.player_configurator_ads_pause, tr.player_configurator_ads_float').toggle(!value).each(cleanFunction);
+
+			$('#tubecontext_domain').prop('disabled', !value);
+		}
+
+		function escapeJavascript(string) {
+			if (string) {
+				string = string.replace(/'/g, '\\\'');
+				string = string.replace(/"/g, '&quot;');
+			}
+			return string;
+		}
+		/* ]]> */
+	</script>
+</head>
+<body>
+	<div id="player_configurator">
+		<ul class="tabs">
+			<li id="sw_player_configurator_visual" class="active"><span>Visual settings</span></li>
+			<li id="sw_player_configurator_brand"><span>Branding</span></li>
+			<li id="sw_player_configurator_ads"><span>Advertising</span></li>
+			<li id="sw_player_configurator_slots"><span>Video files</span></li>
+			<li id="sw_player_configurator_preview"><span>Preview</span></li>
+		</ul>
+		<br class="clear"/>
+		<div class="warning">
+			Please note that some of your images may not work in this configurator due to browser crossdomain
+			restrictions. But they may work if player is loaded from your domain.
+		</div>
+		<form id="form_config" action="" onsubmit="return false;">
+			<div class="section" id="player_configurator_visual" style="display: block">
+				<table>
+					<tr>
+						<td>
+							<label for="width" class="required">Player size (*):</label>
+						</td>
+						<td>
+							<input type="text" id="width" value="854" size="10"/>
+							x
+							<input type="text" id="height" value="480" size="10"/>
+							<input type="button" value="100%" onclick="$('#width, #height').val('100%')"/>
+							<span class="hint">specify player size in pixels or 100% to force player be sized dynamically based on container</span>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label for="hide_controlbar">Toolbar behavior:</label>
+						</td>
+						<td>
+							<select id="hide_controlbar">
+								<option value="">Show always</option>
+								<option value="1" selected="selected">Autohide</option>
+								<option value="2">Never show</option>
+							</select>
+							<span class="hint">configures how toolbar behaves in page mode; doesn't affect fullscreen</span>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label for="hide_style">Toolbar autohide style:</label>
+						</td>
+						<td>
+							<select id="hide_style">
+								<option value="">Move out</option>
+								<option value="fade" selected="selected">Fade out</option>
+							</select>
+							<span class="hint">configures how toolbar is being hidden in fullscreen and in page mode when autohide is selected</span>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label for="skin">Skin:</label>
+						</td>
+						<td>
+							<select id="skin">
+								<option value="">Black (default)</option>
+								<option value="2">White</option>
+							</select>
+							<span class="hint">select one of the available player skins</span>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label for="preview_url">Poster image:</label>
+						</td>
+						<td>
+							<input type="text" id="preview_url" value="http://www.kernel-video-sharing.com/kt_player/poster.jpg" size="40"/>
+							<input type="button" value="Example" onclick="$('#preview_url').val('http://www.kernel-video-sharing.com/kt_player/poster.jpg')"/>
+							<span class="hint">poster image should be hosted on the same domain or should not have hotlink protection in case of crossdomain</span>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label>Disable poster <br/> scaling:</label>
+						</td>
+						<td>
+							<input type="checkbox" id="disable_preview_resize" value="true"/>
+							<label for="disable_preview_resize">do not scale poster to player proportions</label>
+							<span class="hint">player scales poster by default; use this option to force player showing poster in player center without any scaling</span>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label for="skin">Video proportions:</label>
+						</td>
+						<td>
+							<select id="scaling">
+								<option value="">Keep video proportions</option>
+								<option value="fill">Scale to fit player size</option>
+								<option value="crop">Crop to fit player size</option>
+							</select>
+							<span class="hint">keeping video proportions may result in black bars; scaling video to fit player size may distort original video proportions; cropping video to fit player size may crop edges to adjust video</span>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label>Autoplay:</label>
+						</td>
+						<td>
+							<input type="checkbox" id="autoplay" value="true"/>
+							<label for="autoplay">enable autoplay</label>
+							<span class="hint">video will start playing after the player is fully loaded</span>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label>Embed code:</label>
+						</td>
+						<td>
+							<input type="checkbox" id="embed" value="1"/>
+							<label for="embed">enable embed code</label>
+							<span class="hint">if enabled, player will allow to get embed code</span>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label for="permalink_url">Permalink URL:</label>
+						</td>
+						<td>
+							<input type="text" id="permalink_url" value="" size="40"/>
+							<input type="button" value="Example" onclick="$('#permalink_url').val('http://google.com')"/>
+							<span class="hint">if provided, player will allow to get permalink</span>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label for="sec">Limit video playback:</label>
+						</td>
+						<td>
+							<input type="text" id="sec" value="" size="10"/>
+							<span class="hint">specify number of seconds to limit video playback</span>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label for="bt">Buffer time:</label>
+						</td>
+						<td>
+							<input type="text" id="bt" value="5" size="10"/>
+							<span class="hint">specify length of buffer in seconds; player will start playing after its buffer is fully pre-loaded</span>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label for="urls_in_same_window">Click behavior:</label>
+						</td>
+						<td>
+							<select id="urls_in_same_window">
+								<option value="">Open in new tab (window)</option>
+								<option value="1">Open in the same tab (window)</option>
+							</select>
+							<span class="hint">specify how clicks on any branding / advertising must work</span>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label>Disable streaming:</label>
+						</td>
+						<td>
+							<input type="checkbox" id="flv_stream" value="false"/>
+							<label for="flv_stream">server does not support streaming / seeking</label>
+							<span class="hint">disable streaming if your server does not support streaming / seeking</span>
+						</td>
+					</tr>
+				</table>
+			</div>
+			<div class="section" id="player_configurator_brand" style="display: none">
+				<table>
+					<tr>
+						<td>
+							<label for="logo_src">Logo image:</label>
+						</td>
+						<td>
+							<input type="text" id="logo_src" value="" size="40"/>
+							<input type="button" value="Example" onclick="$('#logo_src').val('http://www.kernel-video-sharing.com/kt_player/logo.png')"/>
+							<span class="hint">specify your logo image to be displayed on top of player; should be hosted on the same domain or should not have hotlink protection in case of crossdomain</span>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label for="logo_url">Logo click URL:</label>
+						</td>
+						<td>
+							<input type="text" id="logo_url" value="" size="40"/>
+							<input type="button" value="Example" onclick="$('#logo_url').val('http://google.com')"/>
+							<span class="hint">specify where users will go if they click on your logo</span>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label for="logo_anchor">Logo position:</label>
+						</td>
+						<td>
+							<select id="logo_anchor">
+								<option value="">Top-left</option>
+								<option value="topright">Top-right</option>
+								<option value="bottomright">Bottom-right</option>
+								<option value="bottomleft">Bottom-left</option>
+								<option value="bottomline">Bottom line</option>
+								<option value="topline">Top line</option>
+							</select>
+							<label for="logo_position_x" class="offset">X-offset:</label><input type="text" id="logo_position_x" value="0" size="10"/>
+							<label for="logo_position_y" class="offset">Y-offset:</label><input type="text" id="logo_position_y" value="0" size="10"/>
+							<span class="hint">specify your logo position relative to player and offset in pixels</span>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label for="mlogo">Toolbar text:</label>
+						</td>
+						<td>
+							<input type="text" id="mlogo" value="" size="40"/>
+							<input type="button" value="Example" onclick="$('#mlogo').val('Get more!')"/>
+							<span class="hint">specify branding text you want to be displayed on toolbar</span>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label for="mlogo_link">Toolbar text click URL:</label>
+						</td>
+						<td>
+							<input type="text" id="mlogo_link" value="" size="40"/>
+							<input type="button" value="Example" onclick="$('#mlogo_link').val('http://google.com')"/>
+							<span class="hint">specify where users will go if they click on your toolbar text</span>
+						</td>
+					</tr>
+				</table>
+			</div>
+			<div class="section" id="player_configurator_ads" style="display: none">
+				<table>
+					<!--
+					<tr>
+						<td>
+							<label for="video_click_url">Реклама от <a href="http://tubecontext.com" target="_blank">TubeContext</a>:</label>
+						</td>
+						<td>
+							<input type="checkbox" id="enable_tubecontext" onclick="tubeContextToggle(this.checked)"/>
+							<label for="enable_tubecontext">включить для домена:</label>
+							<input type="text" id="tubecontext_domain" value="kernel-video-sharing.com" size="40" disabled="disabled"/>
+							<span class="hint">если включено, то настройки pre-roll рекламы, post-roll рекламы, рекламы на паузе и всплывающей рекламы возьмутся из настроек провайдера TubeContext для указанного домена</span>
+						</td>
+					</tr>
+					-->
+					<tr>
+						<td>
+							<label for="video_click_url">Click on video area:</label>
+						</td>
+						<td>
+							<input type="text" id="video_click_url" value="" size="40"/>
+							<input type="button" value="Example" onclick="$('#video_click_url').val('http://google.com')"/>
+							<span class="hint">specify if player should open advertising when clicking on video area; if not - click will pause video</span>
+						</td>
+					</tr>
+					<tr class="player_configurator_ads_start">
+						<td>
+							<label for="adv_start_html_id">Start screen advertising:</label>
+						</td>
+						<td>
+							<input type="text" id="adv_start_html_id" value="" size="40"/>
+							<input type="button" value="Example" onclick="$('#adv_start_html_id').val('player_adv_start')"/>
+							<span class="hint">specify HTML id of the element, which should be centered on top of player before user starts video; this element can contain element with class="kt-api-btn-start", which will be automatically configured with "close" or "play" behavior</span>
+						</td>
+					</tr>
+					<tr class="player_configurator_ads_pre_roll">
+						<td colspan="2" class="subheader">Pre-roll advertising (before video starts playing)</td>
+					</tr>
+					<tr class="player_configurator_ads_pre_roll">
+						<td>
+							<label for="adv_pre_html_id">Advertising content:</label>
+						</td>
+						<td>
+							<input type="checkbox" id="adv_pre_roll_sw_html" onclick="$('#adv_pre_html_id, #adv_pre_html_example').prop('disabled', !this.checked); $('#adv_pre_duration, #adv_pre_duration_example').prop('disabled', !this.checked && !$('#adv_pre_roll_sw_flash').get(0).checked);"><label for="adv_pre_roll_sw_html">HTML-based</label>
+							<input type="text" id="adv_pre_html_id" value="" size="40" disabled="disabled"/>
+							<input type="button" id="adv_pre_html_example" value="Example" disabled="disabled" onclick="$('#adv_pre_html_id').val('player_adv_pre')"/>
+							<span class="hint">specify HTML id of the element, which should be centered on top of player as a pre-roll layer; this element can contain element with class="kt-api-time-left", which will be automatically updated with time when advertising ends; and also element with class="kt-api-btn-skip", which will be automatically configured with "skip" or "play" behavior</span>
+							<br/>
+							<input type="checkbox" id="adv_pre_roll_sw_flash" onclick="$('#adv_pre_src, #adv_pre_src_example, #adv_pre_url, #adv_pre_url_example').prop('disabled', !this.checked); $('#adv_pre_duration, #adv_pre_duration_example').prop('disabled', !this.checked && !$('#adv_pre_roll_sw_html').get(0).checked);"><label for="adv_pre_roll_sw_flash">Flash-based</label>
+							<input type="text" id="adv_pre_src" value="" size="40" disabled="disabled"/>
+							<input type="button" id="adv_pre_src_example" value="Example" disabled="disabled" onclick="$('#adv_pre_src').val('http://www.kernel-video-sharing.com/kt_player/advertising.jpg')"/>
+							<span class="hint">specify image or video file location, which should be displayed in player as a pre-roll banner</span>
+						</td>
+					</tr>
+					<tr class="player_configurator_ads_pre_roll">
+						<td>
+							<label for="adv_pre_duration">Advertising duration:</label>
+						</td>
+						<td>
+							<input type="text" id="adv_pre_duration" value="" size="40" disabled="disabled"/>
+							<input type="button" id="adv_pre_duration_example" value="Example" disabled="disabled" onclick="$('#adv_pre_duration').val('10')"/>
+							<span class="hint">specify advertising duration in seconds</span>
+						</td>
+					</tr>
+					<tr class="player_configurator_ads_pre_roll">
+						<td>
+							<label for="adv_pre_url">Click URL:</label>
+						</td>
+						<td>
+							<input type="text" id="adv_pre_url" value="" size="40" disabled="disabled"/>
+							<input type="button" id="adv_pre_url_example" value="Example" disabled="disabled" onclick="$('#adv_pre_url').val('http://google.com')"/>
+							<span class="hint">specify on-click URL for Flash-based advertising; HTML-based advertising should has its own click logic in HTML code</span>
+						</td>
+					</tr>
+					<tr class="player_configurator_ads_post_roll">
+						<td colspan="2" class="subheader">Post-roll advertising (after video ends)</td>
+					</tr>
+					<tr class="player_configurator_ads_post_roll">
+						<td>
+							<label for="adv_post_html_id">Advertising content:</label>
+						</td>
+						<td>
+							<input type="checkbox" id="adv_post_roll_sw_html" onclick="$('#adv_post_html_id, #adv_post_html_example').prop('disabled', !this.checked); $('#adv_post_duration, #adv_post_duration_example').prop('disabled', !this.checked && !$('#adv_post_roll_sw_flash').get(0).checked);"><label for="adv_post_roll_sw_html">HTML-based</label>
+							<input type="text" id="adv_post_html_id" value="" size="40" disabled="disabled"/>
+							<input type="button" id="adv_post_html_example" value="Example" disabled="disabled" onclick="$('#adv_post_html_id').val('player_adv_post')"/>
+							<span class="hint">specify HTML id of the element, which should be centered on top of player as a post-roll layer; this element can contain element with class="kt-api-btn-skip", which will be automatically configured with "skip" or "play" behavior</span>
+							<br/>
+							<input type="checkbox" id="adv_post_roll_sw_flash" onclick="$('#adv_post_src, #adv_post_src_example, #adv_post_url, #adv_post_url_example').prop('disabled', !this.checked); $('#adv_post_duration, #adv_post_duration_example').prop('disabled', !this.checked && !$('#adv_post_roll_sw_html').get(0).checked);"><label for="adv_post_roll_sw_flash">Flash-based</label>
+							<input type="text" id="adv_post_src" value="" size="40" disabled="disabled"/>
+							<input type="button" id="adv_post_src_example" value="Example" disabled="disabled" onclick="$('#adv_post_src').val('http://www.kernel-video-sharing.com/kt_player/advertising.jpg')"/>
+							<span class="hint">specify image or video file location, which should be displayed in player as a post-roll banner</span>
+						</td>
+					</tr>
+					<tr class="player_configurator_ads_post_roll">
+						<td>
+							<label for="adv_post_duration">Advertising duration:</label>
+						</td>
+						<td>
+							<input type="text" id="adv_post_duration" value="" size="40" disabled="disabled"/>
+							<input type="button" id="adv_post_duration_example" value="Example" disabled="disabled" onclick="$('#adv_post_duration').val('10')"/>
+							<span class="hint">specify advertising duration in seconds</span>
+						</td>
+					</tr>
+					<tr class="player_configurator_ads_post_roll">
+						<td>
+							<label for="adv_post_url">Click URL:</label>
+						</td>
+						<td>
+							<input type="text" id="adv_post_url" value="" size="40" disabled="disabled"/>
+							<input type="button" id="adv_post_url_example" value="Example" disabled="disabled" onclick="$('#adv_post_url').val('http://google.com')"/>
+							<span class="hint">specify on-click URL for Flash-based advertising; HTML-based advertising should has its own click logic in HTML code</span>
+						</td>
+					</tr>
+					<tr class="player_configurator_ads_pause">
+						<td colspan="2" class="subheader">Advertising on pause</td>
+					</tr>
+					<tr class="player_configurator_ads_pause">
+						<td>
+							<label for="adv_pause_html_id">Advertising content:</label>
+						</td>
+						<td>
+							<input type="checkbox" id="adv_pause_roll_sw_html" onclick="$('#adv_pause_html_id, #adv_pause_html_example').prop('disabled', !this.checked);"><label for="adv_pause_roll_sw_html">HTML-based</label>
+							<input type="text" id="adv_pause_html_id" value="" size="40" disabled="disabled"/>
+							<input type="button" id="adv_pause_html_example" value="Example" disabled="disabled" onclick="$('#adv_pause_html_id').val('player_adv_pause')"/>
+							<span class="hint">specify HTML id of the element, which should be centered on top of player when video playback is paused; this element can contain element with class="kt-api-btn-start", which will be automatically configured with "continue" behavior</span>
+							<br/>
+							<input type="checkbox" id="adv_pause_roll_sw_flash" onclick="$('#adv_pause_src, #adv_pause_src_example').prop('disabled', !this.checked);"><label for="adv_pause_roll_sw_flash">Flash-based</label>
+							<input type="text" id="adv_pause_src" value="" size="40" disabled="disabled"/>
+							<input type="button" id="adv_pause_src_example" value="Example" disabled="disabled" onclick="$('#adv_pause_src').val('http://www.kernel-video-sharing.com/kt_player/advertising.jpg')"/>
+							<span class="hint">specify image location, which should be displayed in player as an on-pause banner</span>
+						</td>
+					</tr>
+					<tr class="player_configurator_ads_pause">
+						<td>
+							<label for="adv_pause_url">Click URL:</label>
+						</td>
+						<td>
+							<input type="text" id="adv_pause_url" value="" size="40" disabled="disabled"/>
+							<input type="button" id="adv_pause_url_example" value="Example" onclick="$('#adv_pause_url').val('http://google.com')"/>
+							<span class="hint">specify on-click URL for Flash-based advertising; HTML-based advertising should has its own click logic in HTML code</span>
+						</td>
+					</tr>
+					<tr class="player_configurator_ads_float">
+						<td colspan="2" class="subheader">Floating advertising</td>
+					</tr>
+					<tr class="player_configurator_ads_float">
+						<td>
+							<label for="float_src">Flash content:</label>
+						</td>
+						<td>
+							<input type="text" id="float_src" value="" size="40"/>
+							<input type="button" id="float_src_example" value="Example" onclick="$('#float_src').val('http://www.kernel-video-sharing.com/kt_player/float.xml')"/>
+							<span class="hint">specify URL of the XML file, which configures floating advertising (banner, time, duration and etc.)</span>
+						</td>
+					</tr>
+					<tr class="player_configurator_ads_float">
+						<td>
+							<label>Options:</label>
+						</td>
+						<td>
+							<input type="checkbox" id="adreplay" value="true"/>
+							<label for="adreplay">Repeat floating banners on replay</label>
+							<span class="hint">by default floating banners are only displayed once per video</span>
+							<br/>
+							<input type="checkbox" id="disable_float_resize" value="true"/>
+							<label for="disable_float_resize">Disable floating banners resize</label>
+							<span class="hint">by default floating banners are scaled to player width; select this option to force player displaying floating banners in their natural size</span>
+						</td>
+					</tr>
+					<tr class="player_configurator_ads_mover">
+						<td colspan="2" class="subheader">Mouse over advertising</td>
+					</tr>
+					<tr class="player_configurator_ads_mover">
+						<td>
+							<label for="adv_mover_src">Flash content:</label>
+						</td>
+						<td>
+							<input type="text" id="adv_mover_src" value="" size="40"/>
+							<input type="button" id="adv_mover_src_example" value="Example" onclick="$('#adv_mover_src').val('http://www.kernel-video-sharing.com/kt_player/mouseover.jpg')"/>
+							<span class="hint">specify image location, which should be displayed in player as an mouse-over banner</span>
+						</td>
+					</tr>
+					<tr class="player_configurator_ads_mover">
+						<td>
+							<label for="adv_mover_url">Click URL:</label>
+						</td>
+						<td>
+							<input type="text" id="adv_mover_url" value="" size="40"/>
+							<input type="button" id="adv_mover_url_example" value="Example" onclick="$('#adv_mover_url').val('http://google.com')"/>
+							<span class="hint">specify on-click URL for this advertising</span>
+						</td>
+					</tr>
+				</table>
+			</div>
+			<div class="section" id="player_configurator_slots" style="display: none">
+				<table>
+					<tr>
+						<td>
+							<label for="video_url" class="required">Main video URL (*):</label>
+						</td>
+						<td>
+							<input type="text" id="video_url" value="http://www.kernel-video-sharing.com/kt_player/720p.mp4" size="40"/>
+							<input type="button" value="Example" onclick="$('#video_url').val('http://www.kernel-video-sharing.com/kt_player/720p.mp4'); $('#video_url_text').val('720p')"/>
+							<span class="hint">main video file to play</span>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label for="video_url_text" class="required">Main video name (*):</label>
+						</td>
+						<td>
+							<input type="text" id="video_url_text" value="720p" size="40"/>
+							<input type="button" value="Example" onclick="$('#video_url_text').val('720p')"/>
+							<span class="hint">main video file name, will not be visible if only 1 video</span>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label for="streaming_param">Streaming parameter:</label>
+						</td>
+						<td>
+							<input type="text" id="streaming_param" value="" size="40"/>
+							<span class="hint">HTTP parameter, where player should send time for streaming; if empty, please will use nginx-default <b>start</b> parameter</span>
+						</td>
+					</tr>
+					<tr>
+						<td colspan="2" class="subheader">Alternative video file #1 (for multiple formats or advertising)</td>
+					</tr>
+					<tr>
+						<td>
+							<label for="video_alt_url_redirect">On-click mode:</label>
+						</td>
+						<td>
+							<input type="radio" id="video_alt_url_redirect_no" name="video_alt_url_redirect" value="" checked="checked" onclick="$('#video_alt_url_label').html('Video URL:'); $('#video_alt_url').val('')"/>
+							<label for="video_alt_url_redirect_no">Show video</label>
+							<input type="radio" id="video_alt_url_redirect" name="video_alt_url_redirect" value="1" onclick="$('#video_alt_url_label').html('Advertising URL:'); $('#video_alt_url').val('')"/>
+							<label for="video_alt_url_redirect">Redirect to advertising</label>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label id="video_alt_url_label" for="video_alt_url">Video URL:</label>
+						</td>
+						<td>
+							<input type="text" id="video_alt_url" value="" size="40"/>
+							<input type="button" value="Example" onclick="$('#video_alt_url').val('http://www.kernel-video-sharing.com/kt_player/480p.mp4'); $('#video_alt_url_text').val('480p')"/>
+							<span class="hint">alternative video slot #1</span>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label for="video_alt_url_text">Video name:</label>
+						</td>
+						<td>
+							<input type="text" id="video_alt_url_text" value="" size="40"/>
+							<input type="button" value="Example" onclick="$('#video_alt_url_text').val('480p')"/>
+							<span class="hint">alternative video slot #1 name to be displayed in player</span>
+						</td>
+					</tr>
+					<tr>
+						<td colspan="2" class="subheader">Alternative video file #2 (for multiple formats or advertising)</td>
+					</tr>
+					<tr>
+						<td>
+							<label for="video_alt_url2_redirect">On-click mode:</label>
+						</td>
+						<td>
+							<input type="radio" id="video_alt_url2_redirect_no" name="video_alt_url2_redirect" value="" checked="checked" onclick="$('#video_alt_url2_label').html('Video URL:'); $('#video_alt_url2').val('')"/>
+							<label for="video_alt_url2_redirect_no">Show video</label>
+							<input type="radio" id="video_alt_url2_redirect" name="video_alt_url2_redirect" value="1" onclick="$('#video_alt_url2_label').html('Advertising URL:'); $('#video_alt_url2').val('')"/>
+							<label for="video_alt_url2_redirect">Redirect to advertising</label>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label id="video_alt_url2_label" for="video_alt_url2">Video URL:</label>
+						</td>
+						<td>
+							<input type="text" id="video_alt_url2" value="" size="40"/>
+							<input type="button" value="Example" onclick="$('#video_alt_url2').val('http://www.kernel-video-sharing.com/kt_player/360p.mp4'); $('#video_alt_url2_text').val('360p')"/>
+							<span class="hint">alternative video slot #2</span>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label for="video_alt_url2_text">Video name:</label>
+						</td>
+						<td>
+							<input type="text" id="video_alt_url2_text" value="" size="40"/>
+							<input type="button" value="Example" onclick="$('#video_alt_url2_text').val('360p')"/>
+							<span class="hint">alternative video slot #2 name to be displayed in player</span>
+						</td>
+					</tr>
+					<tr>
+						<td colspan="2" class="subheader">Alternative video file #3 (for multiple formats or advertising)</td>
+					</tr>
+					<tr>
+						<td>
+							<label for="video_alt_url3_redirect">On-click mode:</label>
+						</td>
+						<td>
+							<input type="radio" id="video_alt_url3_redirect_no" name="video_alt_url3_redirect" value="" checked="checked" onclick="$('#video_alt_url3_label').html('Video URL:'); $('#video_alt_url3').val('')"/>
+							<label for="video_alt_url3_redirect_no">Show video</label>
+							<input type="radio" id="video_alt_url3_redirect" name="video_alt_url3_redirect" value="1" onclick="$('#video_alt_url3_label').html('Advertising URL:'); $('#video_alt_url3').val('')"/>
+							<label for="video_alt_url3_redirect">Redirect to advertising</label>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label id="video_alt_url3_label" for="video_alt_url3">Video URL:</label>
+						</td>
+						<td>
+							<input type="text" id="video_alt_url3" value="" size="40"/>
+							<input type="button" value="Example" onclick="$('#video_alt_url3_redirect').click(); $('#video_alt_url3').val('http://google.com'); $('#video_alt_url3_text').val('Full HD')"/>
+							<span class="hint">alternative video slot #3</span>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label for="video_alt_url3_text">Video name:</label>
+						</td>
+						<td>
+							<input type="text" id="video_alt_url3_text" value="" size="40"/>
+							<input type="button" value="Example" onclick="$('#video_alt_url3_text').val('Full HD')"/>
+							<span class="hint">alternative video slot #3 name to be displayed in player</span>
+						</td>
+					</tr>
+					<tr>
+						<td colspan="2" class="subheader">Alternative video file #4 (for multiple formats or advertising)</td>
+					</tr>
+					<tr>
+						<td>
+							<label for="video_alt_url4_redirect">On-click mode:</label>
+						</td>
+						<td>
+							<input type="radio" id="video_alt_url4_redirect_no" name="video_alt_url4_redirect" value="" checked="checked" onclick="$('#video_alt_url4_label').html('Video URL:'); $('#video_alt_url4').val('')"/>
+							<label for="video_alt_url4_redirect_no">Show video</label>
+							<input type="radio" id="video_alt_url4_redirect" name="video_alt_url4_redirect" value="1" onclick="$('#video_alt_url4_label').html('Advertising URL:'); $('#video_alt_url4').val('')"/>
+							<label for="video_alt_url4_redirect">Redirect to advertising</label>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label id="video_alt_url4_label" for="video_alt_url4">Video URL:</label>
+						</td>
+						<td>
+							<input type="text" id="video_alt_url4" value="" size="40"/>
+							<span class="hint">alternative video slot #4</span>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label for="video_alt_url4_text">Video name:</label>
+						</td>
+						<td>
+							<input type="text" id="video_alt_url4_text" value="" size="40"/>
+							<span class="hint">alternative video slot #4 name to be displayed in player</span>
+						</td>
+					</tr>
+					<tr>
+						<td colspan="2" class="subheader">Alternative video file #5 (for multiple formats or advertising)</td>
+					</tr>
+					<tr>
+						<td>
+							<label for="video_alt_url5_redirect">On-click mode:</label>
+						</td>
+						<td>
+							<input type="radio" id="video_alt_url5_redirect_no" name="video_alt_url5_redirect" value="" checked="checked" onclick="$('#video_alt_url5_label').html('Video URL:'); $('#video_alt_url5').val('')"/>
+							<label for="video_alt_url5_redirect_no">Show video</label>
+							<input type="radio" id="video_alt_url5_redirect" name="video_alt_url5_redirect" value="1" onclick="$('#video_alt_url5_label').html('Advertising URL:'); $('#video_alt_url5').val('')"/>
+							<label for="video_alt_url5_redirect">Redirect to advertising</label>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label id="video_alt_url5_label" for="video_alt_url5">Video URL:</label>
+						</td>
+						<td>
+							<input type="text" id="video_alt_url5" value="" size="40"/>
+							<span class="hint">alternative video slot #5</span>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<label for="video_alt_url5_text">Video name:</label>
+						</td>
+						<td>
+							<input type="text" id="video_alt_url5_text" value="" size="40"/>
+							<span class="hint">alternative video slot #5 name to be displayed in player</span>
+						</td>
+					</tr>
+				</table>
+			</div>
+			<div class="section" id="player_configurator_preview" style="display: none">
+				<div id="preview_container"></div>
+				<div id="code_container"></div>
+			</div>
+			<input type="button" id="btn_preview" value="Preview"/>
+			<input type="reset" id="btn_reset" value="Reset"/>
+		</form>
+	</div>
+</body>
+</html>
